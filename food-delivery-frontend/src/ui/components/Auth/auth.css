@@ -1,0 +1,229 @@
+/* ===== Auth shared layout (full-screen) ===== */
+:root{
+    --auth-bg:#ffffff;
+    --auth-card-radius:16px;
+}
+
+/* Reset the page chrome so there are no outer gutters */
+html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+}
+
+/* Take over the entire viewport regardless of parent layout */
+.auth-root{
+    position: fixed;   /* <-- critical to remove outer gutters */
+    inset: 0;          /* top:0; right:0; bottom:0; left:0 */
+    display: grid;
+    grid-template-columns: 1fr; /* mobile default: single column with overlay */
+    background: var(--auth-bg);
+    overflow: hidden;  /* prevent scrollbars from outer containers */
+}
+
+/* Illustration: full-bleed background on mobile */
+.auth-illustration{
+    background-image: url("../../../assets/auth-illustration.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100%;
+    width: 100%;
+}
+
+/* Form area: acts like centered overlay on mobile */
+.auth-form-wrap{
+    position: absolute;
+    inset: 0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+}
+
+/* Popup card */
+.auth-card{
+    width: 100%;
+    max-width: 520px;
+    border-radius: var(--auth-card-radius);
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+    padding: 32px;
+}
+
+/* Desktop ≥1024px: strict 50/50 split */
+@media (min-width: 1024px){
+    .auth-root{
+        grid-template-columns: 1fr 1fr; /* exact half/half */
+        position: fixed; /* keep full-screen */
+    }
+    .auth-illustration{
+        position: static;
+        width: 50vw;
+    }
+    .auth-form-wrap{
+        position: static;  /* becomes the right column */
+        height: 100vh;
+        padding: 0;        /* no inner gutters */
+        width: 50vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .auth-card{
+        width: 80%;
+        max-width: 520px;
+        padding: 40px;
+    }
+}
+
+/* Very large screens: allow a touch wider */
+@media (min-width: 1400px){
+    .auth-card{
+        max-width: 640px;
+    }
+}
+
+/* Card spacing + vertical rhythm */
+.auth-card .MuiBox-root { gap: 6px; display: grid; }
+.auth-card .auth-title { margin-bottom: 4px; }
+.auth-card .auth-subtitle { color: #6b7280; margin-bottom: 12px; }
+
+/* TextFields: soft background, rounded, subtle borders */
+.auth-card .MuiTextField-root { margin-top: 6px; margin-bottom: 10px; }
+.auth-card .MuiOutlinedInput-root {
+    background: #f8fafc;                 /* light slate bg */
+    border-radius: 12px;
+    transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.auth-card .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+    border-color: #cbd5e1;               /* slate-300 */
+}
+.auth-card .MuiOutlinedInput-notchedOutline {
+    border-color: #e5e7eb;               /* slate-200 */
+}
+.auth-card .MuiOutlinedInput-root.Mui-focused {
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); /* focus ring */
+}
+.auth-card .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+    border-color: #2563eb;               /* primary blue */
+}
+
+/* Input label refinement */
+.auth-card .MuiInputLabel-root {
+    color: #6b7280;
+}
+.auth-card .MuiInputLabel-root.Mui-focused {
+    color: #2563eb;
+}
+
+/* Eye icon button hover */
+.auth-card .MuiIconButton-root:hover {
+    background: rgba(0,0,0,0.04);
+}
+
+/* “Remember me / Forgot password” row */
+.auth-card .auth-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0 16px;
+}
+.auth-card .MuiFormControlLabel-label {
+    color: #374151;
+}
+.auth-card a {
+    color: #2563eb;
+    text-decoration: none;
+}
+.auth-card a:hover {
+    text-decoration: underline;
+}
+
+/* Primary button: bold, rounded, pleasant press/hover */
+.auth-card .MuiButton-contained {
+    height: 46px;
+    border-radius: 12px;
+    text-transform: none;
+    font-weight: 700;
+    letter-spacing: .02em;
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+.auth-card .MuiButton-contained:hover {
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.32);
+}
+
+/* Footer link */
+.auth-card .auth-footer {
+    margin-top: 14px;
+    color: #6b7280;
+}
+.auth-card .auth-footer a {
+    font-weight: 600;
+}
+
+/* Make small screens comfy */
+@media (max-width: 420px){
+    .auth-card { padding: 24px; }
+    .auth-card .MuiButton-contained { height: 44px; }
+}
+
+/* Card base text */
+.auth-card {
+    font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+    font-size: 1rem;           /* 16px base for easy reading */
+    line-height: 1.5;
+}
+
+/* Titles */
+.auth-card .auth-title {
+    font-size: 1.6rem;         /* ~25px */
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.auth-card .auth-subtitle {
+    font-size: 1rem;           /* 16px */
+    color: #6b7280;
+    margin-bottom: 16px;
+}
+
+/* Inputs */
+.auth-card .MuiTextField-root {
+    margin-top: 8px;
+    margin-bottom: 14px;
+}
+.auth-card .MuiInputBase-input {
+    font-size: 1rem;           /* 16px input text */
+    padding: 14px 16px;
+}
+.auth-card .MuiInputLabel-root {
+    font-size: 0.95rem;        /* slightly larger label */
+}
+
+/* Remember me / links */
+.auth-card .MuiFormControlLabel-label {
+    font-size: 0.95rem;
+}
+.auth-card a {
+    font-size: 0.95rem;
+}
+
+/* Button */
+.auth-card .MuiButton-contained {
+    height: 52px;
+    font-size: 1rem;           /* 16px */
+    font-weight: 700;
+    border-radius: 12px;
+    letter-spacing: 0.02em;
+}
+
+/* Footer */
+.auth-card .auth-footer {
+    font-size: 0.95rem;
+    margin-top: 16px;
+}
+.auth-card .auth-footer a {
+    font-weight: 600;
+    font-size: 1rem;
+}

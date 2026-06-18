@@ -1,0 +1,66 @@
+HELP.md
+target/
+food-delivery-backend/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+food-delivery-backend/.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Ignore modules for front-end ###
+node_modules/
+
+__pycache__/
+**/__pycache__/
+*.py[cod]
+venv/
+.venv/
+food-delivery-backend/ml_service/venv/
+
+application-local.properties
+application-local.yml
+
+# Spring Boot local config with real passwords/keys
+food-delivery-backend/src/main/resources/application.properties
+
+# Python ML service secrets
+food-delivery-backend/ml_service/.env
+
+# =============================================================================
+# TEMPLATES TO COMMIT (these have no real secrets)
+# =============================================================================
+# food-delivery-backend/src/main/resources/application.properties.example  ← commit this
+# food-delivery-backend/ml_service/.env.example                             ← commit this
+
+# =============================================================================
+# Build artifacts
+# =============================================================================
+food-delivery-backend/target/
+food-delivery-backend/ml_service/.venv/
+food-delivery-frontend/node_modules/
+food-delivery-frontend/dist/
