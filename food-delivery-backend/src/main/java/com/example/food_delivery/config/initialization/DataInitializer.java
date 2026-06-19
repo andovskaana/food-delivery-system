@@ -1524,6 +1524,62 @@ public class DataInitializer {
         r_Spizzicotto___EU.setZone(com.example.food_delivery.model.enums.SkopjeZone.AERODROM);
         r_SushiCo_Zen.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
         r_Teteks___Karposh.setZone(com.example.food_delivery.model.enums.SkopjeZone.KARPOSH);
+
+        // --- Assign realistic average rating and delivery time estimate to each restaurant ---
+        // (the shared constructor always defaults rating to 0.0 and only sets deliveryTimeEstimate,
+        //  not deliveryTimeMinutes, so both are backfilled here with believable, varied values)
+        r_Amigos_Centar.setAverageRating(4.6);
+        r_Amigos_Centar.setDeliveryTimeMinutes(25);
+        r_Amigos_Centar.setDeliveryTimeEstimate(25);
+
+        r_Amigos_Ljubljanska.setAverageRating(4.5);
+        r_Amigos_Ljubljanska.setDeliveryTimeMinutes(28);
+        r_Amigos_Ljubljanska.setDeliveryTimeEstimate(28);
+
+        r_Amigos_Zeleznicka.setAverageRating(4.3);
+        r_Amigos_Zeleznicka.setDeliveryTimeMinutes(35);
+        r_Amigos_Zeleznicka.setDeliveryTimeEstimate(35);
+
+        r_Beer_Garden_Debar_Maalo.setAverageRating(4.4);
+        r_Beer_Garden_Debar_Maalo.setDeliveryTimeMinutes(30);
+        r_Beer_Garden_Debar_Maalo.setDeliveryTimeEstimate(30);
+
+        r_Enriko.setAverageRating(4.7);
+        r_Enriko.setDeliveryTimeMinutes(22);
+        r_Enriko.setDeliveryTimeEstimate(22);
+
+        r_Forza_Restaurant.setAverageRating(4.2);
+        r_Forza_Restaurant.setDeliveryTimeMinutes(33);
+        r_Forza_Restaurant.setDeliveryTimeEstimate(33);
+
+        r_Plaza_De_Toros.setAverageRating(4.1);
+        r_Plaza_De_Toros.setDeliveryTimeMinutes(27);
+        r_Plaza_De_Toros.setDeliveryTimeEstimate(27);
+
+        r_Revija_Bar___Food.setAverageRating(4.3);
+        r_Revija_Bar___Food.setDeliveryTimeMinutes(24);
+        r_Revija_Bar___Food.setDeliveryTimeEstimate(24);
+
+        r_Royal_Burger_Debar_Maalo.setAverageRating(4.5);
+        r_Royal_Burger_Debar_Maalo.setDeliveryTimeMinutes(26);
+        r_Royal_Burger_Debar_Maalo.setDeliveryTimeEstimate(26);
+
+        r_Skara_Bar.setAverageRating(4.4);
+        r_Skara_Bar.setDeliveryTimeMinutes(38);
+        r_Skara_Bar.setDeliveryTimeEstimate(38);
+
+        r_Spizzicotto___EU.setAverageRating(4.6);
+        r_Spizzicotto___EU.setDeliveryTimeMinutes(32);
+        r_Spizzicotto___EU.setDeliveryTimeEstimate(32);
+
+        r_SushiCo_Zen.setAverageRating(4.8);
+        r_SushiCo_Zen.setDeliveryTimeMinutes(29);
+        r_SushiCo_Zen.setDeliveryTimeEstimate(29);
+
+        r_Teteks___Karposh.setAverageRating(4.2);
+        r_Teteks___Karposh.setDeliveryTimeMinutes(31);
+        r_Teteks___Karposh.setDeliveryTimeEstimate(31);
+
         restaurantRepository.save(r_Amigos_Centar);
         restaurantRepository.save(r_Amigos_Ljubljanska);
         restaurantRepository.save(r_Amigos_Zeleznicka);
