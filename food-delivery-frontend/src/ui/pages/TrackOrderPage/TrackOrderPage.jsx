@@ -88,8 +88,7 @@ const TrackOrderPage = () => {
     const getStatusColor = (status) => {
         switch (status) {
             case 'CONFIRMED': return 'info';
-            case 'PICKED_UP':
-            case 'EN_ROUTE': return 'warning';
+            case 'PICKED_UP': return 'warning';
             case 'DELIVERED': return 'success';
             default: return 'default';
         }

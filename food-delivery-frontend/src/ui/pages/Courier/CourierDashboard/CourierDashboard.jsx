@@ -23,7 +23,7 @@ const ZONE_LABELS = {
 
 const statusColor = (s) => {
     if (s === "CONFIRMED") return "info";
-    if (s === "PICKED_UP" || s === "EN_ROUTE") return "warning";
+    if (s === "PICKED_UP") return "warning";
     if (s === "DELIVERED") return "success";
     return "default";
 };
