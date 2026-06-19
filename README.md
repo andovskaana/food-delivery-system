@@ -21,7 +21,7 @@ cd food-delivery-backend
 ./mvnw spring-boot:run
 
 # First-time setup — seed the database ONCE:
-./mvnw spring-boot:run -Dspring-boot.run.profiles=seed
+cmd /c "mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=seed"
 ```
 
 After first seed, run normally. The seeder checks `userRepository.count() > 0` and skips if data already exists.

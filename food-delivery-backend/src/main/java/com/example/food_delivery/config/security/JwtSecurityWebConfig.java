@@ -114,7 +114,9 @@ public class JwtSecurityWebConfig {
                                 "/api/couriers/complete/{orderId}",
                                 "/api/couriers/my-orders",
                                 "/api/couriers/my-delivered-orders",
-                                "/api/couriers/my-available-orders"
+                                "/api/couriers/my-available-orders",
+                                "/api/couriers/my-zone",
+                                "/api/couriers/zones"
                         ).hasAnyRole("COURIER", "ADMIN")
                         // --- Restaurant owner endpoints ---
                         .requestMatchers("/api/owner/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
@@ -126,7 +128,8 @@ public class JwtSecurityWebConfig {
                                 "/api/restaurants/add",
                                 "/api/restaurants/edit/{id}",
                                 "/api/restaurants/delete/{id}",
-                                "/api/admin/**"
+                                "/api/admin/**",
+                                "/api/admin/couriers/**"
                         ).hasRole("ADMIN")
                         // --- Admin-only user management (must come AFTER /api/user/login and /api/user/register) ---
                         .requestMatchers("/api/user/**").hasRole("ADMIN")

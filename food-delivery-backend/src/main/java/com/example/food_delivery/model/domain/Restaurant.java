@@ -1,5 +1,6 @@
 package com.example.food_delivery.model.domain;
 
+import com.example.food_delivery.model.enums.SkopjeZone;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,6 +33,10 @@ public class Restaurant {
 
     private Boolean isOpen;
     private String imageUrl;
+
+    /** Zone used for courier proximity scoring — no GPS, simplified zone model */
+    @Enumerated(EnumType.STRING)
+    private SkopjeZone zone;
 
     public Restaurant(String name, String description, String imageUrl,String openHours, String category, Boolean isOpen, Integer deliveryTimeEstimate,Double averageRating) {
         this.name = name;

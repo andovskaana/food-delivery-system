@@ -4,11 +4,13 @@ import com.example.food_delivery.model.domain.Courier;
 import com.example.food_delivery.model.domain.CourierOrderOffer;
 import com.example.food_delivery.model.domain.Order;
 import com.example.food_delivery.model.enums.OrderStatus;
+import com.example.food_delivery.model.enums.SkopjeZone;
 import com.example.food_delivery.repository.CourierOrderOfferRepository;
 import com.example.food_delivery.repository.CourierRatingRepository;
 import com.example.food_delivery.repository.CourierRepository;
 import com.example.food_delivery.repository.OrderRepository;
 import com.example.food_delivery.service.domain.CourierAssignmentService;
+import com.example.food_delivery.util.ZoneDistanceMatrix;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,26 +18,26 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Simple but realistic courier assignment algorithm.
+ * Zone-based courier assignment (push model, no GPS).
  *
- * Scoring (higher = better):
- *   + 40 pts  : courier is active (not busy) — required
- *   + up to 30 pts : average rating (rating * 6, max 30)
- *   - 0 pts  : excluded if customer gave this courier a rating <= 2
+ * Each courier has a currentZone (set once per shift from a dropdown).
+ * Each restaurant has a fixed zone (set when created).
+ * ZoneDistanceMatrix gives an estimated travel time between any two zones.
  *
- * Distance bonus: if restaurant coordinates available, couriers within 5 km get +30 pts,
- * otherwise ignored (treated as equidistant).
+ * When an order is confirmed, the algorithm scores all active couriers and
+ * offers it to the top 3. No further input needed from the courier — proximity
+ * is fully automatic from their zone.
  *
- * The top MAX_OFFERS_PER_ORDER couriers receive offers.
+ * Scoring (max ~100):
+ *   Base       : 40 pts
+ *   Rating     : avgRating × 6, max 30 pts (new couriers: 15 neutral)
+ *   Proximity  : max(0, 30 − zoneMinutes × 1.5)  — zoneMinutes from ZoneDistanceMatrix
+ *   Tiebreaker : random 0–5 pts
  */
 @Service
 public class CourierAssignmentServiceImpl implements CourierAssignmentService {
 
-    /** How many couriers receive the offer simultaneously */
-    private static final int MAX_OFFERS_PER_ORDER = 3;
-
-    /** Haversine radius in km below which a courier gets the distance bonus */
-    private static final double NEAR_DISTANCE_KM = 5.0;
+    private static final int MAX_OFFERS = 3;
 
     private final CourierRepository courierRepository;
     private final CourierRatingRepository courierRatingRepository;
@@ -57,60 +59,56 @@ public class CourierAssignmentServiceImpl implements CourierAssignmentService {
     public List<Courier> offerOrderToCouriers(Order order) {
         String customerUsername = order.getUser().getUsername();
 
-        // Get couriers the customer has low-rated (blocked from this customer's orders)
-        List<Courier> blockedCouriers = courierRatingRepository
+        Set<Long> blockedIds = courierRatingRepository
                 .findCouriersRatedLowByCustomer(customerUsername,
-                        com.example.food_delivery.model.domain.CourierRating.LOW_RATING_THRESHOLD);
-        Set<Long> blockedIds = blockedCouriers.stream()
-                .map(Courier::getId)
-                .collect(Collectors.toSet());
+                        com.example.food_delivery.model.domain.CourierRating.LOW_RATING_THRESHOLD)
+                .stream().map(Courier::getId).collect(Collectors.toSet());
 
-        // All active couriers not blocked
         List<Courier> candidates = courierRepository.findAllActiveCouriers().stream()
                 .filter(c -> !blockedIds.contains(c.getId()))
                 .collect(Collectors.toList());
 
-        if (candidates.isEmpty()) {
-            return Collections.emptyList();
-        }
+        if (candidates.isEmpty()) return Collections.emptyList();
 
-        // Score and rank
-        Double restLat = (order.getRestaurant() != null && order.getRestaurant().getCoordinates() != null)
-                ? order.getRestaurant().getCoordinates().getLat() : null;
-        Double restLng = (order.getRestaurant() != null && order.getRestaurant().getCoordinates() != null)
-                ? order.getRestaurant().getCoordinates().getLng() : null;
+        SkopjeZone restaurantZone = order.getRestaurant() != null ? order.getRestaurant().getZone() : null;
 
-        Map<Courier, Double> scores = new HashMap<>();
+        Random rnd = new Random();
+        Map<Courier, double[]> scoreMap = new LinkedHashMap<>(); // [0]=total [1]=rating [2]=proximity [3]=tiebreak [4]=zoneMinutes
+
         for (Courier courier : candidates) {
-            double score = 40.0; // base for being active
+            double base = 40.0;
 
-            // Rating bonus
             Double avgRating = courierRatingRepository.findAverageRatingByCourier(courier);
-            if (avgRating != null) {
-                score += avgRating * 6.0; // max 30 pts for rating=5
-            } else {
-                score += 15.0; // neutral for new couriers (assume mid rating)
-            }
+            double ratingPts = avgRating != null ? avgRating * 6.0 : 15.0;
 
-            // Distance bonus (simplified: use courier's last known location if stored; else skip)
-            // We don't store courier GPS in this project, so we skip distance and give equal chance.
-            // If restaurant coords are available and courier had coords, we'd compute haversine.
-            // For now: all equidistant, small random tiebreaker for fairness.
-            score += new Random().nextDouble() * 5.0;
+            int zoneMinutes = ZoneDistanceMatrix.minutesBetween(courier.getCurrentZone(), restaurantZone);
+            double proximityPts = Math.max(0.0, 30.0 - zoneMinutes * 1.5);
 
-            scores.put(courier, score);
+            double tiebreaker = rnd.nextDouble() * 5.0;
+            double total = base + ratingPts + proximityPts + tiebreaker;
+
+            scoreMap.put(courier, new double[]{total, ratingPts, proximityPts, tiebreaker, zoneMinutes});
         }
 
-        // Sort descending by score, take top N
         List<Courier> selected = candidates.stream()
-                .sorted((a, b) -> Double.compare(scores.getOrDefault(b, 0.0), scores.getOrDefault(a, 0.0)))
-                .limit(MAX_OFFERS_PER_ORDER)
+                .sorted((a, b) -> Double.compare(scoreMap.get(b)[0], scoreMap.get(a)[0]))
+                .limit(MAX_OFFERS)
                 .collect(Collectors.toList());
 
-        // Persist offers
         for (Courier courier : selected) {
             if (!offerRepository.existsByCourierAndOrder(courier, order)) {
-                offerRepository.save(new CourierOrderOffer(courier, order));
+                double[] pts = scoreMap.get(courier);
+                Double avgRating = courierRatingRepository.findAverageRatingByCourier(courier);
+                String breakdown = String.format(
+                        "Base: 40 | Rating: %.1f (avg=%.2f) | Proximity: %.1f (%s→%s, ~%.0f min) | Tiebreaker: %.1f | Total: %.1f",
+                        pts[1],
+                        avgRating != null ? avgRating : -1.0,
+                        pts[2],
+                        courier.getCurrentZone() != null ? courier.getCurrentZone() : "UNKNOWN",
+                        restaurantZone != null ? restaurantZone : "UNKNOWN",
+                        pts[4],
+                        pts[3], pts[0]);
+                offerRepository.save(new CourierOrderOffer(courier, order, pts[0], breakdown));
             }
         }
 
@@ -128,17 +126,6 @@ public class CourierAssignmentServiceImpl implements CourierAssignmentService {
     @Override
     public boolean isCourierEligibleForOrder(String courierUsername, Long orderId) {
         return offerRepository.findByUsername(courierUsername).stream()
-                .anyMatch(offer -> offer.getOrder().getId().equals(orderId));
-    }
-
-    /** Haversine distance in km between two lat/lng pairs (for future use) */
-    private static double haversineKm(double lat1, double lng1, double lat2, double lng2) {
-        final int R = 6371;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                .anyMatch(o -> o.getOrder().getId().equals(orderId));
     }
 }

@@ -1,431 +1,161 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import {
+    Box, Typography, Grid, Card, CardContent, CardMedia, CardActions,
+    Button, Chip, CircularProgress, Alert, Avatar, Stack,
+} from '@mui/material';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { Link } from 'react-router';
+import TimeBasedRecommendations from '../components/recommendations/TimeBasedRecommendations.jsx';
+import PopularRecommendations from '../components/recommendations/PopularRecommendations.jsx';
+import axiosInstance from '../../axios/axios.js';
+import { addToCartRespectingSingleRestaurant } from '../../repository/cartActions.js';
 
-/**
- * Recommendations Page
- * Production-ready recommendations component
- */
+const PRIMARY = '#f97316';
+
+const getEmojiForCategory = (cat) => {
+    const map = { Pizza: '🍕', Burger: '🍔', Pasta: '🍝', Salad: '🥗', Sushi: '🍣', Dessert: '🍰', Drink: '🥤', Drinks: '🥤' };
+    return map[cat] || '🍽️';
+};
+
+const ProductCard = ({ product, onAdd }) => (
+    <Card sx={{
+        height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        transition: 'transform .15s ease, box-shadow .15s ease',
+        '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(0,0,0,0.12)' },
+    }}>
+        {product.imageUrl ? (
+            <CardMedia component="img" height="160" image={product.imageUrl} alt={product.name} sx={{ objectFit: 'cover' }} />
+        ) : (
+            <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8f9fa', fontSize: 64 }}>
+                {getEmojiForCategory(product.category)}
+            </Box>
+        )}
+        <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+            {product.category && (
+                <Chip label={product.category} size="small" variant="outlined" sx={{ alignSelf: 'flex-start', mb: 1, fontSize: 11 }} />
+            )}
+            <Typography variant="subtitle1" fontWeight={700} sx={{
+                mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}>
+                {product.name}
+            </Typography>
+            {product.description && (
+                <Typography variant="body2" color="text.secondary" sx={{
+                    mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', flexGrow: 1,
+                }}>
+                    {product.description}
+                </Typography>
+            )}
+            <Typography variant="h6" fontWeight={700} color="success.main" sx={{ mt: 'auto' }}>
+                {Number(product.price || 0).toFixed(0)} ден
+            </Typography>
+        </CardContent>
+        <CardActions sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
+            <Button size="small" variant="outlined" component={Link} to={`/products/${product.id}`}
+                    sx={{ flex: 1, borderRadius: 2, textTransform: 'none' }}>
+                Details
+            </Button>
+            <Button size="small" variant="contained" startIcon={<ShoppingCartIcon />}
+                    disabled={!product.isAvailable || product.quantity <= 0}
+                    onClick={() => onAdd(product.id)}
+                    sx={{ flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: PRIMARY, '&:hover': { bgcolor: '#ea6d0d' } }}>
+                Add
+            </Button>
+        </CardActions>
+    </Card>
+);
+
 const RecommendationsPage = () => {
-    const [recommendations, setRecommendations] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [mlRecs, setMlRecs] = useState([]);
+    const [mlLoading, setMlLoading] = useState(true);
+    const [mlError, setMlError] = useState(null);
+    const [cartAlert, setCartAlert] = useState(null);
 
-    const API_BASE = 'http://localhost:8080';
-
-    const getAuthToken = () => {
-        return localStorage.getItem('token');
-    };
-
-    // Fetch recommendations on component mount
     useEffect(() => {
-        fetchRecommendations();
+        axiosInstance.get('/recommendations/advanced', { params: { limit: 12, applyRules: true } })
+            .then(res => setMlRecs(res.data || []))
+            .catch(() => setMlError('ML service unavailable — showing other recommendations below.'))
+            .finally(() => setMlLoading(false));
     }, []);
 
-    const fetchRecommendations = async () => {
-        setLoading(true);
-        setError(null);
-
+    const handleAdd = async (productId) => {
         try {
-            const token = getAuthToken();
-
-            // Call advanced ML recommendations
-            const response = await axios.get(
-                `${API_BASE}/api/recommendations/advanced`,
-                {
-                    params: {
-                        limit: 12,
-                        applyRules: true
-                    },
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
-
-            setRecommendations(response.data);
-        } catch (err) {
-            console.error('Error fetching recommendations:', err);
-            setError('Failed to load recommendations. Please try again.');
-        } finally {
-            setLoading(false);
+            const res = await addToCartRespectingSingleRestaurant(productId);
+            if (res?.ok) setCartAlert(res.replaced ? 'Cart replaced and item added!' : 'Added to cart!');
+        } catch {
+            setCartAlert('Failed to add to cart.');
         }
-    };
-
-    const handleAddToCart = async (productId) => {
-        try {
-            const token = getAuthToken();
-
-            await axios.post(
-                `${API_BASE}/api/products/add-to-order/${productId}`,
-                {},
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
-
-            alert('✅ Product added to cart!');
-        } catch (err) {
-            console.error('Error adding to cart:', err);
-            alert('❌ Failed to add product to cart');
-        }
+        setTimeout(() => setCartAlert(null), 3000);
     };
 
     return (
-        <div style={styles.page}>
+        <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', p: { xs: 2, md: 4 } }}>
             {/* Header */}
-            <div style={styles.header}>
-                <h1 style={styles.title}>Recommended for You</h1>
-                <p style={styles.subtitle}>
-                    Personalized suggestions based on your preferences
-                </p>
-            </div>
+            <Stack direction="row" alignItems="center" spacing={2} mb={4}>
+                <Avatar sx={{ bgcolor: PRIMARY, width: 52, height: 52 }}>
+                    <AutoAwesomeIcon />
+                </Avatar>
+                <Box>
+                    <Typography variant="h4" fontWeight={800}>Recommendations</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Personalized picks based on your habits, the time of day, and what's trending
+                    </Typography>
+                </Box>
+            </Stack>
 
-            {/* Loading State */}
-            {loading && (
-                <div style={styles.loadingContainer}>
-                    <div style={styles.spinner}></div>
-                    <p style={styles.loadingText}>Finding the best recommendations...</p>
-                </div>
+            {cartAlert && (
+                <Alert severity="success" onClose={() => setCartAlert(null)} sx={{ mb: 3 }}>{cartAlert}</Alert>
             )}
 
-            {/* Error State */}
-            {error && !loading && (
-                <div style={styles.errorContainer}>
-                    <div style={styles.errorIcon}>😕</div>
-                    <p style={styles.errorText}>{error}</p>
-                    <button onClick={fetchRecommendations} style={styles.retryButton}>
-                        Try Again
-                    </button>
-                </div>
-            )}
+            {/* Section 1: Time-based */}
+            <Box sx={{ mb: 5 }}>
+                <TimeBasedRecommendations />
+            </Box>
 
-            {/* Recommendations Grid */}
-            {!loading && !error && recommendations.length > 0 && (
-                <div style={styles.grid}>
-                    {recommendations.map((product) => (
-                        <div key={product.id} style={styles.card}>
-                            {/* Product Image */}
-                            <div style={styles.imageContainer}>
-                                {product.imageUrl ? (
-                                    <img
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        style={styles.image}
-                                    />
-                                ) : (
-                                    <div style={styles.imagePlaceholder}>
-                                        {getEmojiForCategory(product.category)}
-                                    </div>
-                                )}
-                            </div>
+            {/* Section 2: Popular / Trending */}
+            <Box sx={{ mb: 5 }}>
+                <PopularRecommendations />
+            </Box>
 
-                            {/* Product Info */}
-                            <div style={styles.cardContent}>
-                                <div style={styles.categoryBadge}>
-                                    {product.category}
-                                </div>
+            {/* Section 3: ML Personalized */}
+            <Box sx={{ mb: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+                    <AutoAwesomeIcon sx={{ fontSize: 32, color: PRIMARY }} />
+                    <Box>
+                        <Typography variant="h5" fontWeight={800}>Just For You ✨</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            ML-powered picks based on your order history
+                        </Typography>
+                    </Box>
+                </Stack>
 
-                                <h3 style={styles.productName}>{product.name}</h3>
-
-                                <div style={styles.descriptionContainer}>
-                                    {product.description && (
-                                        <p style={styles.description}>
-                                            {product.description.substring(0, 100)}
-                                            {product.description.length > 100 ? '...' : ''}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div style={styles.footer}>
-                                    <div style={styles.priceSection}>
-                                        <span style={styles.price}>${product.price.toFixed(2)}</span>
-                                        {product.quantity > 0 ? (
-                                            <span style={styles.available}>Available</span>
-                                        ) : (
-                                            <span style={styles.unavailable}>Out of stock</span>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        onClick={() => handleAddToCart(product.id)}
-                                        disabled={product.quantity === 0}
-                                        style={{
-                                            ...styles.addButton,
-                                            ...(product.quantity === 0 ? styles.addButtonDisabled : {})
-                                        }}
-                                    >
-                                        {product.quantity === 0 ? 'Unavailable' : 'Add to Cart'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Empty State */}
-            {!loading && !error && recommendations.length === 0 && (
-                <div style={styles.emptyContainer}>
-                    <div style={styles.emptyIcon}>🍽️</div>
-                    <h3 style={styles.emptyTitle}>No recommendations yet</h3>
-                    <p style={styles.emptyText}>
-                        Start ordering to get personalized recommendations!
-                    </p>
-                </div>
-            )}
-        </div>
+                {mlLoading && (
+                    <Box textAlign="center" py={4}><CircularProgress sx={{ color: PRIMARY }} /></Box>
+                )}
+                {mlError && !mlLoading && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>{mlError}</Alert>
+                )}
+                {!mlLoading && mlRecs.length > 0 && (
+                    <Grid container spacing={3}>
+                        {mlRecs.map(product => (
+                            <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                                <ProductCard product={product} onAdd={handleAdd} />
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
+                {!mlLoading && !mlError && mlRecs.length === 0 && (
+                    <Box textAlign="center" py={6}>
+                        <Typography fontSize={64} mb={2}>🍽️</Typography>
+                        <Typography variant="h6" fontWeight={600}>No personalized picks yet</Typography>
+                        <Typography color="text.secondary">Start ordering to get ML-powered recommendations!</Typography>
+                    </Box>
+                )}
+            </Box>
+        </Box>
     );
 };
-
-// Helper function
-const getEmojiForCategory = (category) => {
-    const emojiMap = {
-        'Pizza': '🍕',
-        'Burger': '🍔',
-        'Pasta': '🍝',
-        'Salad': '🥗',
-        'Sushi': '🍣',
-        'Dessert': '🍰',
-        'Drink': '🥤',
-    };
-    return emojiMap[category] || '🍽️';
-};
-
-// Styles
-const styles = {
-    page: {
-        minHeight: '100vh',
-        backgroundColor: '#f8f9fa',
-        padding: '40px 20px',
-    },
-    header: {
-        textAlign: 'center',
-        marginBottom: '40px',
-    },
-    title: {
-        fontSize: '36px',
-        fontWeight: '700',
-        color: '#1a1a1a',
-        margin: '0 0 12px 0',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    },
-    subtitle: {
-        fontSize: '18px',
-        color: '#6c757d',
-        margin: 0,
-    },
-    loadingContainer: {
-        textAlign: 'center',
-        padding: '80px 20px',
-    },
-    spinner: {
-        border: '4px solid #f3f3f3',
-        borderTop: '4px solid #f97316',
-        borderRadius: '50%',
-        width: '50px',
-        height: '50px',
-        animation: 'spin 1s linear infinite',
-        margin: '0 auto 24px',
-    },
-    loadingText: {
-        fontSize: '16px',
-        color: '#6c757d',
-    },
-    errorContainer: {
-        textAlign: 'center',
-        padding: '80px 20px',
-        maxWidth: '500px',
-        margin: '0 auto',
-    },
-    errorIcon: {
-        fontSize: '64px',
-        marginBottom: '20px',
-    },
-    errorText: {
-        fontSize: '18px',
-        color: '#6c757d',
-        marginBottom: '24px',
-    },
-    retryButton: {
-        padding: '12px 32px',
-        fontSize: '16px',
-        fontWeight: '600',
-        color: 'white',
-        backgroundColor: '#f97316',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        transition: 'background-color 0.3s',
-    },
-    grid: {
-        maxWidth: '1400px',
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '24px',
-        padding: '0 20px',
-    },
-    card: {
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        overflow: 'hidden',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-    },
-    imageContainer: {
-        width: '100%',
-        height: '240px',
-        overflow: 'hidden',
-        backgroundColor: '#f8f9fa',
-        flexShrink: 0,
-    },
-    image: {
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        transition: 'transform 0.3s',
-    },
-    imagePlaceholder: {
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '80px',
-        backgroundColor: '#f8f9fa',
-    },
-    cardContent: {
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        flexGrow: 1,
-    },
-    categoryBadge: {
-        display: 'inline-block',
-        padding: '4px 12px',
-        fontSize: '12px',
-        fontWeight: '600',
-        color: '#f97316',
-        backgroundColor: '#d4edda',
-        borderRadius: '12px',
-        marginBottom: '12px',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        alignSelf: 'flex-start',
-    },
-    productName: {
-        fontSize: '20px',
-        fontWeight: '600',
-        color: '#1a1a1a',
-        margin: '0 0 12px 0',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical',
-        lineHeight: '1.4',
-    },
-    descriptionContainer: {
-        minHeight: '60px',
-        marginBottom: '16px',
-        flexGrow: 1,
-    },
-    description: {
-        fontSize: '14px',
-        color: '#6c757d',
-        lineHeight: '1.6',
-        margin: 0,
-    },
-    footer: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        marginTop: 'auto',
-    },
-    priceSection: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    price: {
-        fontSize: '24px',
-        fontWeight: '700',
-        color: '#f97316',
-    },
-    available: {
-        fontSize: '13px',
-        color: '#f97316',
-        fontWeight: '500',
-    },
-    unavailable: {
-        fontSize: '13px',
-        color: '#dc3545',
-        fontWeight: '500',
-    },
-    addButton: {
-        width: '100%',
-        padding: '14px',
-        fontSize: '16px',
-        fontWeight: '600',
-        color: 'white',
-        backgroundColor: '#f97316',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        transition: 'background-color 0.3s',
-    },
-    addButtonDisabled: {
-        backgroundColor: '#6c757d',
-        cursor: 'not-allowed',
-    },
-    emptyContainer: {
-        textAlign: 'center',
-        padding: '100px 20px',
-    },
-    emptyIcon: {
-        fontSize: '72px',
-        marginBottom: '24px',
-    },
-    emptyTitle: {
-        fontSize: '24px',
-        fontWeight: '600',
-        color: '#1a1a1a',
-        marginBottom: '12px',
-    },
-    emptyText: {
-        fontSize: '16px',
-        color: '#6c757d',
-    },
-};
-
-// Add spinner animation
-if (typeof document !== 'undefined') {
-    const styleSheet = document.createElement('style');
-    styleSheet.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @media (hover: hover) {
-      .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
-      }
-      
-      .card:hover img {
-        transform: scale(1.05);
-      }
-
-    }
-  `;
-    document.head.appendChild(styleSheet);
-}
 
 export default RecommendationsPage;

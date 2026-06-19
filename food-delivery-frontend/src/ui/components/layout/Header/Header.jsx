@@ -21,15 +21,20 @@ const Header = () => {
 
         if (user.roles?.includes('ADMIN')) {
             return (
-                <Button color="inherit" startIcon={<AdminPanelSettingsIcon/>} component={Link} to="/admin">
-                    Admin Panel
-                </Button>
+                <>
+                    <Button color="inherit" startIcon={<AdminPanelSettingsIcon />} component={Link} to="/admin">
+                        Admin Panel
+                    </Button>
+                    <Button color="inherit" startIcon={<DeliveryDiningIcon />} component={Link} to="/admin/couriers">
+                        Courier Audit
+                    </Button>
+                </>
             );
         }
 
         if (user.roles?.includes('RESTAURANT_OWNER')) {
             return (
-                <Button color="inherit" startIcon={<StorefrontIcon/>} component={Link} to="/owner">
+                <Button color="inherit" startIcon={<StorefrontIcon />} component={Link} to="/owner">
                     Owner Panel
                 </Button>
             );
@@ -37,7 +42,7 @@ const Header = () => {
 
         if (user.roles?.includes('COURIER')) {
             return (
-                <Button color="inherit" startIcon={<DeliveryDiningIcon/>} component={Link} to="/courier">
+                <Button color="inherit" startIcon={<DeliveryDiningIcon />} component={Link} to="/courier">
                     Courier Dashboard
                 </Button>
             );
@@ -49,7 +54,7 @@ const Header = () => {
     return (
         <AppBar position="static" color="primary">
             <Toolbar sx={{ display: 'flex', gap: 2 }}>
-                <RestaurantIcon/>
+                <RestaurantIcon />
 
                 <Typography
                     variant="h6"
@@ -63,15 +68,15 @@ const Header = () => {
 
                 {user?.roles?.includes('CUSTOMER') && (
                     <>
-                    <Button color="inherit" startIcon={<ShoppingCartIcon/>} component={Link} to="/cart">
-                        Cart
-                    </Button>
-                    <Button color="inherit" component={Link} to="/orders/my-orders">
-                        My Orders
-                    </Button>
-                    <Button color="inherit" component={Link} to="/recommendations">
-                        Recommendations
-                    </Button>
+                        <Button color="inherit" startIcon={<ShoppingCartIcon />} component={Link} to="/cart">
+                            Cart
+                        </Button>
+                        <Button color="inherit" component={Link} to="/orders/my-orders">
+                            My Orders
+                        </Button>
+                        <Button color="inherit" component={Link} to="/recommendations">
+                            Recommendations
+                        </Button>
                     </>
                 )}
 
@@ -79,17 +84,10 @@ const Header = () => {
 
                 {user ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Button
-                            color="inherit"
-                            onClick={() => navigate(`/user/me`)}
-                            sx={{ textTransform: 'none' }}
-                        >
+                        <Button color="inherit" onClick={() => navigate('/user/me')} sx={{ textTransform: 'none' }}>
                             Hello, {user.username}
                         </Button>
-                        <Button
-                            color="inherit"
-                            onClick={() => { logout(); navigate('/'); }}
-                        >
+                        <Button color="inherit" onClick={() => { logout(); navigate('/'); }}>
                             Logout
                         </Button>
                     </Box>

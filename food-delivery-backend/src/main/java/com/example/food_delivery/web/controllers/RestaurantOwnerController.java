@@ -58,6 +58,7 @@ public class RestaurantOwnerController {
             m.put("openHours", r.getOpenHours());
             m.put("imageUrl", r.getImageUrl());
             m.put("isOpen", r.getIsOpen());
+            m.put("zone", r.getZone());
             return m;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);

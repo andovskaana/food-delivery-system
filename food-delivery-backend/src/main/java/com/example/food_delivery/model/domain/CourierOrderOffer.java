@@ -7,10 +7,6 @@ import lombok.Setter;
 
 import java.time.Instant;
 
-/**
- * Tracks which couriers have been offered a specific order by the assignment algorithm.
- * Only couriers with a record here can accept the corresponding order.
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,9 +29,23 @@ public class CourierOrderOffer {
 
     private Instant offeredAt = Instant.now();
 
+    /** Score assigned by the algorithm when this offer was created */
+    private Double score;
+
+    /** Human-readable score breakdown, shown in admin audit */
+    private String scoreBreakdown;
+
     public CourierOrderOffer(Courier courier, Order order) {
         this.courier = courier;
         this.order = order;
         this.offeredAt = Instant.now();
+    }
+
+    public CourierOrderOffer(Courier courier, Order order, double score, String scoreBreakdown) {
+        this.courier = courier;
+        this.order = order;
+        this.offeredAt = Instant.now();
+        this.score = score;
+        this.scoreBreakdown = scoreBreakdown;
     }
 }

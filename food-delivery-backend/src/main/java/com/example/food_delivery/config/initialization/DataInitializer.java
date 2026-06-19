@@ -1510,6 +1510,40 @@ public class DataInitializer {
         restaurantOwner.setRestaurants(new java.util.ArrayList<>(java.util.List.of(r_Amigos_Centar)));
         restaurantOwnerRepository.save(restaurantOwner);
 
+        // --- Assign zones to restaurants (no GPS — simplified zone model for courier matching) ---
+        r_Amigos_Centar.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Amigos_Ljubljanska.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Amigos_Zeleznicka.setZone(com.example.food_delivery.model.enums.SkopjeZone.GAZI_BABA);
+        r_Beer_Garden_Debar_Maalo.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Enriko.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Forza_Restaurant.setZone(com.example.food_delivery.model.enums.SkopjeZone.AERODROM);
+        r_Plaza_De_Toros.setZone(com.example.food_delivery.model.enums.SkopjeZone.KISELA_VODA);
+        r_Revija_Bar___Food.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Royal_Burger_Debar_Maalo.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Skara_Bar.setZone(com.example.food_delivery.model.enums.SkopjeZone.BUTEL);
+        r_Spizzicotto___EU.setZone(com.example.food_delivery.model.enums.SkopjeZone.AERODROM);
+        r_SushiCo_Zen.setZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        r_Teteks___Karposh.setZone(com.example.food_delivery.model.enums.SkopjeZone.KARPOSH);
+        restaurantRepository.save(r_Amigos_Centar);
+        restaurantRepository.save(r_Amigos_Ljubljanska);
+        restaurantRepository.save(r_Amigos_Zeleznicka);
+        restaurantRepository.save(r_Beer_Garden_Debar_Maalo);
+        restaurantRepository.save(r_Enriko);
+        restaurantRepository.save(r_Forza_Restaurant);
+        restaurantRepository.save(r_Plaza_De_Toros);
+        restaurantRepository.save(r_Revija_Bar___Food);
+        restaurantRepository.save(r_Royal_Burger_Debar_Maalo);
+        restaurantRepository.save(r_Skara_Bar);
+        restaurantRepository.save(r_Spizzicotto___EU);
+        restaurantRepository.save(r_SushiCo_Zen);
+        restaurantRepository.save(r_Teteks___Karposh);
+
+        // --- Assign zone to seeded couriers (so the algorithm has usable couriers on first run) ---
+        courier.setCurrentZone(com.example.food_delivery.model.enums.SkopjeZone.CENTAR);
+        courierRepository.save(courier);
+        courier2.setCurrentZone(com.example.food_delivery.model.enums.SkopjeZone.KARPOSH);
+        courierRepository.save(courier2);
+
         loadSyntheticOrders();
     }
 

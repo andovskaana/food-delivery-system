@@ -8,14 +8,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CourierOrderOfferRepository extends JpaRepository<CourierOrderOffer, Long> {
 
     boolean existsByCourierAndOrder(Courier courier, Order order);
 
+    Optional<CourierOrderOffer> findByCourierAndOrder(Courier courier, Order order);
+
     List<CourierOrderOffer> findByOrder(Order order);
 
-    @Query("SELECT coo FROM CourierOrderOffer coo WHERE coo.courier.user.username = :username")
+    @Query("SELECT o FROM CourierOrderOffer o WHERE o.courier.user.username = :username")
     List<CourierOrderOffer> findByUsername(@Param("username") String username);
 
     void deleteByOrder(Order order);
