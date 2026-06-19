@@ -95,6 +95,7 @@ public class AdminCourierController {
             entry.put("acceptedBy", acceptedBy);
 
             List<Map<String, Object>> offerList = offers.stream()
+                    .filter(o -> o.getCourier() != null)
                     .sorted(Comparator.comparingDouble(o -> -(o.getScore() != null ? o.getScore() : 0)))
                     .map(o -> {
                         Map<String, Object> m = new LinkedHashMap<>();

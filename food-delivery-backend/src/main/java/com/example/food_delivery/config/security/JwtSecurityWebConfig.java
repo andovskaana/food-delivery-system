@@ -72,6 +72,7 @@ public class JwtSecurityWebConfig {
                 .authorizeHttpRequests(auth -> auth
                         // --- Public endpoints ---
                         .requestMatchers(
+                                "/error",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/h2/**",
