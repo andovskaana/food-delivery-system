@@ -18,6 +18,7 @@ public interface OrderApplicationService {
     Optional<OrderDto> cancel(String username);
     List<OrderDto> findOrdersForCourier(String username);
     List<OrderDto> findConfirmedOrdersForCustomer(String username);
+    List<OrderDto> findDeliveredOrdersForCustomer(String username);
     OrderDto setDeliveryAddress(Long id, AddressDto address);
     OrderDto applyDiscount(String username, Double discountAmount);
 

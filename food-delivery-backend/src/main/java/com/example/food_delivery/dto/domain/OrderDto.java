@@ -12,16 +12,16 @@ import java.util.List;
 @Setter
 public class OrderDto {
     private Long id;
-    private String userUsername;          // lightweight user ref
-    private String status;                // OrderStatus as string
+    private String userUsername;
+    private String status;
 
     private Long restaurantId;
     private String restaurantName;
     private AddressDto deliveryAddress;
     private Courier courier;
+    private String courierName;
 
     private List<DisplayProductDto> products;
-
     private List<OrderItemDto> items;
 
     private Double subtotal;
@@ -32,4 +32,7 @@ public class OrderDto {
 
     private Instant placedAt;
     private LocalDateTime deliveredAt;
+
+    private Boolean courierRated;
+    private Integer courierRating;
 }

@@ -56,8 +56,6 @@ public final class BasicMappers {
         return zones == null ? null : zones.stream().map(BasicMappers::toDto).collect(Collectors.toList());
     }
 
-
-
     // ===== OrderItem =====
     public static OrderItemDto toDto(OrderItem it) {
         if (it == null) return null;
@@ -86,15 +84,21 @@ public final class BasicMappers {
         d.setUserUsername(o.getUser() != null ? o.getUser().getUsername() : null);
         d.setStatus(o.getStatus() != null ? o.getStatus().name() : null);
         d.setSubtotal(o.getSubtotal());
-        d.setRestaurantId(o.getRestaurant().getId());
-        d.setRestaurantName(o.getRestaurant().getName());
-        d.setProducts( DisplayProductDto.from(o.getProducts()));
+        if (o.getRestaurant() != null) {
+            d.setRestaurantId(o.getRestaurant().getId());
+            d.setRestaurantName(o.getRestaurant().getName());
+        }
+        d.setProducts(DisplayProductDto.from(o.getProducts()));
         d.setItems(toItemDtos(o.getItems()));
         d.setDeliveryFee(o.getDeliveryFee());
         d.setPlatformFee(o.getPlatformFee());
         d.setDeliveryAddress(BasicMappers.toDto(o.getDeliveryAddress()));
         d.setDiscount(o.getDiscount());
         d.setCourier(o.getCourier());
+        if (o.getCourier() != null) {
+            d.setCourierName(o.getCourier().getName() != null ? o.getCourier().getName() :
+                    (o.getCourier().getUser() != null ? o.getCourier().getUser().getUsername() : null));
+        }
         d.setTotal(o.getTotal());
         d.setPlacedAt(o.getPlacedAt());
         d.setDeliveredAt(o.getDeliveredAt());
@@ -128,7 +132,6 @@ public final class BasicMappers {
 
     public static Courier fromDto(CourierDto dto) {
         if (dto == null) return null;
-
         Courier courier = new Courier();
         courier.setActive(dto.getActive());
         return courier;
@@ -147,12 +150,10 @@ public final class BasicMappers {
         return d;
     }
 
-    // ===== Convenience aliases used by application services =====
     public static DisplayCourierDto toDisplayDto(Courier c) {
         return c == null ? null : DisplayCourierDto.from(c);
     }
 
-    /** Alias so application services can call toOrderDto as well as toDto */
     public static OrderDto toOrderDto(Order o) {
         return toDto(o);
     }
@@ -160,5 +161,4 @@ public final class BasicMappers {
     public static DisplayOrderDto toDisplayDto(Order o) {
         return o == null ? null : DisplayOrderDto.from(o);
     }
-
 }

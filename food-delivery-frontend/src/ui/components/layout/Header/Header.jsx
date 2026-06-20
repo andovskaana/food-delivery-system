@@ -5,6 +5,7 @@ import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DeliveryDiningIcon from '@mui/icons-material/DeliveryDining';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import { Link, useNavigate, useLocation } from "react-router";
 import useAuth from "../../../../hooks/useAuth.js";
 
@@ -70,6 +71,12 @@ const Header = () => {
                     <>
                         <Button color="inherit" startIcon={<ShoppingCartIcon />} component={Link} to="/cart">
                             Cart
+                        </Button>
+                        <Button color="inherit" startIcon={<GroupAddIcon />} component={Link} to="/group-orders/join">
+                            Join Group
+                        </Button>
+                        <Button color="inherit" component={Link} to="/group-orders/my-groups">
+                            My Groups
                         </Button>
                         <Button color="inherit" component={Link} to="/orders/my-orders">
                             My Orders

@@ -28,8 +28,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.courier.user.username = :courierUsername AND o.status = 'DELIVERED'")
     List<Order> findByCourierUsernameAndDelivered(@Param("courierUsername") String courierUsername);
 
-    @Query("SELECT o FROM Order o WHERE o.user.username = :username AND (o.status = 'CONFIRMED' OR o.status = 'PICKED_UP')")
-    List<Order> findByUsernameAndConfirmed(@Param("username") String username);
+    @Query("SELECT o FROM Order o WHERE o.user.username = :username AND (o.status = 'CONFIRMED' OR o.status = 'PICKED_UP' OR o.status = 'EN_ROUTE' OR o.status = 'IN_PREPARATION' OR o.status = 'READY_FOR_PICKUP' OR o.status = 'ACCEPTED_BY_RESTAURANT') ORDER BY o.placedAt DESC")
+    List<Order> findByUsernameAndActive(@Param("username") String username);
+
+    @Query("SELECT o FROM Order o WHERE o.user.username = :username AND o.status = 'DELIVERED' ORDER BY o.deliveredAt DESC")
+    List<Order> findDeliveredByCustomerUsername(@Param("username") String username);
 
     /** For owner analytics — avoids loading ALL orders */
     @Query("SELECT o FROM Order o WHERE o.restaurant.id = :restaurantId ORDER BY o.placedAt DESC")

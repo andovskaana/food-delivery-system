@@ -55,7 +55,7 @@ public class OrderServiceImpl implements OrderService {
         return findPending(username).orElseGet(() -> {
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new UserNotFoundException(username));
-            Order order = new Order(user); // status=PENDING
+            Order order = new Order(user);
             order.recalcTotals();
             return orderRepository.save(order);
         });
@@ -65,21 +65,21 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Optional<Order> confirm(String username) {
         Optional<Order> orderOpt = findPending(username);
-        if (orderOpt.isPresent()) {
-            Order order = orderOpt.get();
-            boolean hasItems = (order.getItems() != null && !order.getItems().isEmpty()) ||
-                    (order.getProducts() != null && !order.getProducts().isEmpty());
-            if (!hasItems) {
-                throw new EmptyOrderException();
-            }
-            // Recalc before confirm
-            order.recalcTotals();
-            // Optional: apply fees one last time
-            orderTotalsService.setFeesAndRecalculate(order, order.getRestaurant());
-            order.confirm();
-            return Optional.of(orderRepository.save(order));
+        return orderOpt.map(this::confirmExistingOrder);
+    }
+
+    @Override
+    @Transactional
+    public Order confirmExistingOrder(Order order) {
+        boolean hasItems = (order.getItems() != null && !order.getItems().isEmpty()) ||
+                (order.getProducts() != null && !order.getProducts().isEmpty());
+        if (!hasItems) {
+            throw new EmptyOrderException();
         }
-        return Optional.empty();
+        order.recalcTotals();
+        orderTotalsService.setFeesAndRecalculate(order, order.getRestaurant());
+        order.confirm();
+        return orderRepository.save(order);
     }
 
     @Override
@@ -113,7 +113,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<Order> findConfirmedOrdersForCustomer(String username) {
-        return orderRepository.findByUsernameAndConfirmed(username);
+        return orderRepository.findByUsernameAndActive(username);
+    }
+
+    @Override
+    public List<Order> findDeliveredOrdersForCustomer(String username) {
+        return orderRepository.findDeliveredByCustomerUsername(username);
     }
 
     @Override

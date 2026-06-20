@@ -15,6 +15,7 @@ public interface OrderService {
     Order findOrCreatePending(String username);
 
     Optional<Order> confirm(String username);
+    Order confirmExistingOrder(Order order);
 
     Optional<Order> cancel(String username);
 
@@ -22,6 +23,7 @@ public interface OrderService {
 
     List<Order> findOrdersForCourier(String username);
     List<Order> findConfirmedOrdersForCustomer(String username);
+    List<Order> findDeliveredOrdersForCustomer(String username);
     Optional<Order> updateAddress(Long id, Address deliveryAddress);
     Order save(Order order);
 }

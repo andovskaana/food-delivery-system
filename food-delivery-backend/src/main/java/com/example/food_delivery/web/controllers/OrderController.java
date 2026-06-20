@@ -18,10 +18,11 @@ public class OrderController {
     private final RfmPromotionService rfmPromotionService;
 
     public OrderController(OrderApplicationService orderApplicationService,
-                          RfmPromotionService rfmPromotionService) {
+                           RfmPromotionService rfmPromotionService) {
         this.orderApplicationService = orderApplicationService;
         this.rfmPromotionService = rfmPromotionService;
     }
+
     @GetMapping("/confirmed")
     public ResponseEntity<List<OrderDto>> findConfirmed() {
         return ResponseEntity.ok(orderApplicationService.findAllConfirmed());
@@ -34,6 +35,7 @@ public class OrderController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
     @GetMapping("/pending")
     public ResponseEntity<DisplayOrderDto> findOrCreatePending(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(orderApplicationService.findOrCreatePending(user.getUsername()));
@@ -53,7 +55,6 @@ public class OrderController {
                 .cancel(user.getUsername())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-
     }
 
     @GetMapping("/track/{id}")
@@ -66,8 +67,13 @@ public class OrderController {
     }
 
     @GetMapping("/my-orders")
-    public ResponseEntity<List<OrderDto>> findConfirmedOrdersForCustomer(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<OrderDto>> findActiveOrdersForCustomer(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(orderApplicationService.findConfirmedOrdersForCustomer(user.getUsername()));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<OrderDto>> findDeliveredOrdersForCustomer(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(orderApplicationService.findDeliveredOrdersForCustomer(user.getUsername()));
     }
 
     @GetMapping("/cart")
@@ -87,25 +93,18 @@ public class OrderController {
     public ResponseEntity<ApplyCouponResponseDto> applyCoupon(
             @AuthenticationPrincipal User user,
             @RequestBody ApplyCouponRequestDto request) {
-        // Get current cart to get subtotal
         OrderDto cart = orderApplicationService.getCart(user.getUsername());
         Double subtotal = cart.getSubtotal() != null ? cart.getSubtotal() : 0.0;
-
-        // Validate coupon
         ApplyCouponResponseDto response = rfmPromotionService.validateCoupon(
                 user, request.couponCode(), subtotal);
-
-        // If valid, apply the discount to the order
         if (Boolean.TRUE.equals(response.success()) && response.discountAmount() != null) {
             orderApplicationService.applyDiscount(user.getUsername(), response.discountAmount());
         }
-
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/remove-coupon")
     public ResponseEntity<Void> removeCoupon(@AuthenticationPrincipal User user) {
-        // Remove discount by setting it to 0
         orderApplicationService.applyDiscount(user.getUsername(), 0.0);
         return ResponseEntity.ok().build();
     }

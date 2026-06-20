@@ -16,6 +16,11 @@ import ForgotPasswordPage from './ui/pages/ForgotPasswordPage.jsx'
 import CourierDashboard from './ui/pages/Courier/CourierDashboard/CourierDashboard.jsx'
 import RecommendationsPage from './ui/pages/RecommendationsPage.jsx'
 
+import GroupOrderPage from './ui/pages/GroupOrderPage/GroupOrderPage.jsx'
+import GroupPaymentPage from './ui/pages/GroupPaymentPage/GroupPaymentPage.jsx'
+import JoinGroupOrderPage from './ui/pages/JoinGroupOrderPage/JoinGroupOrderPage.jsx'
+import GroupOrdersHistoryPage from './ui/pages/GroupOrdersHistoryPage/GroupOrdersHistoryPage.jsx'
+
 // Admin pages
 import AdminDashboard from './ui/pages/Admin/AdminDashboard/AdminDashboard.jsx'
 import AdminUsers from './ui/pages/Admin/Users/AdminUsers.jsx'
@@ -36,6 +41,14 @@ App.routes = createRoutesFromElements(
         <Route path="/login" element={<LoginPage/>}/>
         <Route path="/register" element={<RegisterPage/>}/>
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        {/* Public group order routes. /join must be before /:code. */}
+        <Route path="/group-orders/join" element={<JoinGroupOrderPage />} />
+        <Route path="/group-orders/participant/:paymentToken" element={<GroupPaymentPage />} />
+        <Route path="/group-orders/my-groups" element={<ProtectedRoute role={"CUSTOMER"}/>}>
+            <Route index element={<GroupOrdersHistoryPage/>}/>
+        </Route>
+        <Route path="/group-orders/:code" element={<GroupOrderPage />} />
 
         {/* Customer routes */}
         <Route path="/products/:id" element={<ProductPage/>}/>

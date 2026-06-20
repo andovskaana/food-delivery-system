@@ -1,3 +1,14 @@
+// src/ui/pages/MyOrdersPage/MyOrdersPage.jsx
+//
+// Hardened version. Differences vs the original (apply these same three guards to
+// your CURRENT running file, which is newer than the zip you shared):
+//   1. .catch on the fetch  -> a failed/500 request no longer leaves an unhandled
+//      rejection, and never lets a non-array value reach .map().
+//   2. Array.isArray guard  -> if the backend ever returns an error-shaped object
+//      with 200, we don't crash; we show an empty/error state.
+//   3. Null-safe total/name  -> order.total ?? 0 before .toFixed, so one bad row
+//      can't throw during render.
+
 import React, { useEffect, useState } from "react";
 import orderRepository from "../../../repository/orderRepository.js";
 import { useNavigate } from "react-router";
@@ -10,22 +21,39 @@ import {
     Button,
     Grid,
     Divider,
+    Alert,
 } from "@mui/material";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
 const MyOrdersPage = () => {
     const [orders, setOrders] = useState([]);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        orderRepository.getMyOrders().then((res) => {
-            setOrders(res.data);
-        });
+        let active = true;
+        orderRepository
+            .getMyOrders()
+            .then((res) => {
+                if (!active) return;
+                // Guard: only accept arrays. Anything else -> treat as empty.
+                setOrders(Array.isArray(res.data) ? res.data : []);
+                setError("");
+            })
+            .catch((e) => {
+                if (!active) return;
+                setOrders([]);
+                setError(extractError(e, "Failed to load your orders."));
+            })
+            .finally(() => active && setLoading(false));
+        return () => {
+            active = false;
+        };
     }, []);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", px: 2, py: 4 }}>
-            {/* Header */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
                 <ReceiptLongIcon color="primary" />
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
@@ -33,8 +61,15 @@ const MyOrdersPage = () => {
                 </Typography>
             </Box>
 
-            {/* Empty state */}
-            {orders.length === 0 ? (
+            {error && (
+                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
+                    {error}
+                </Alert>
+            )}
+
+            {loading ? (
+                <Typography color="text.secondary">Loading…</Typography>
+            ) : orders.length === 0 ? (
                 <Typography color="text.secondary" sx={{ mt: 2 }}>
                     You don’t have any confirmed orders yet.
                 </Typography>
@@ -59,10 +94,10 @@ const MyOrdersPage = () => {
                                     </Typography>
                                     <Divider sx={{ mb: 1.5 }} />
                                     <Typography variant="body2" color="text.secondary">
-                                        Restaurant: <strong>{order.restaurantName}</strong>
+                                        Restaurant: <strong>{order.restaurantName ?? "—"}</strong>
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">
-                                        Total: <strong>{order.total.toFixed(2)} ден.</strong>
+                                        Total: <strong>{Number(order.total ?? 0).toFixed(2)} ден.</strong>
                                     </Typography>
                                     <Typography
                                         variant="body2"

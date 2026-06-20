@@ -87,7 +87,8 @@ public class JwtSecurityWebConfig {
                                 "/api/orders/address/{id}",
                                 "/api/user/{username}/password",
                                 "/api/sentiment/**",
-                                "/api/rfm/**"
+                                "/api/rfm/**",
+                                "/api/group-orders/**"
                         ).permitAll()
                         // --- Authenticated user (any role) ---
                         .requestMatchers("/api/user/me").authenticated()
