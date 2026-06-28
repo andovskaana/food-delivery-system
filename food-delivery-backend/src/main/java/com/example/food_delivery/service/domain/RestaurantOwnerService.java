@@ -13,6 +13,15 @@ public interface RestaurantOwnerService {
     /** Submit a change request (restaurant/product update) */
     OwnerChangeRequest submitChangeRequest(String username, Long restaurantId, String type, String payload);
 
+    /** Submit a change request, including the target product id (for PRODUCT_UPDATE / PRODUCT_DELETE) */
+    OwnerChangeRequest submitChangeRequest(String username, Long restaurantId, String type, String payload, Long targetProductId);
+
+    /** Owner: all change requests submitted by this owner (any status) */
+    List<OwnerChangeRequest> getChangeRequestsByOwner(String username);
+
+    /** Owner: all promotion requests submitted by this owner (any status) */
+    List<PromotionRequest> getPromotionsByOwner(String username);
+
     /** Submit a promotion request */
     PromotionRequest submitPromotion(String username, PromotionRequest request);
 

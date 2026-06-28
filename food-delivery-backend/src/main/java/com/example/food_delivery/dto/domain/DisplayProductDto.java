@@ -14,10 +14,21 @@ public record DisplayProductDto(
         Long restaurantId,
         Boolean isAvailable,
         String category,
-        String imageUrl
+        String imageUrl,
+        // Active-promotion fields (null when no approved promotion applies).
+        Double discountPercent,
+        Double discountedPrice,
+        String promotionName
 ) {
 
     public static DisplayProductDto from(Product product) {
+        return from(product, null, null, null);
+    }
+
+    public static DisplayProductDto from(Product product,
+                                         Double discountPercent,
+                                         Double discountedPrice,
+                                         String promotionName) {
         return new DisplayProductDto(
                 product.getId(),
                 product.getName(),
@@ -27,7 +38,10 @@ public record DisplayProductDto(
                 product.getRestaurant().getId(),
                 product.getIsAvailable(),
                 product.getCategory(),
-                product.getImageUrl()
+                product.getImageUrl(),
+                discountPercent,
+                discountedPrice,
+                promotionName
         );
     }
 

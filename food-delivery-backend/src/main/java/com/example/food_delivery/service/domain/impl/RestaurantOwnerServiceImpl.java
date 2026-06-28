@@ -52,6 +52,13 @@ public class RestaurantOwnerServiceImpl implements RestaurantOwnerService {
     @Transactional
     public OwnerChangeRequest submitChangeRequest(String username, Long restaurantId,
                                                    String type, String payload) {
+        return submitChangeRequest(username, restaurantId, type, payload, null);
+    }
+
+    @Override
+    @Transactional
+    public OwnerChangeRequest submitChangeRequest(String username, Long restaurantId,
+                                                   String type, String payload, Long targetProductId) {
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
@@ -63,7 +70,19 @@ public class RestaurantOwnerServiceImpl implements RestaurantOwnerService {
 
         ChangeRequestType requestType = ChangeRequestType.valueOf(type);
         OwnerChangeRequest request = new OwnerChangeRequest(user, restaurant, requestType, payload);
+        // Set the target product id inside the transaction so it is persisted with the request.
+        request.setTargetProductId(targetProductId);
         return changeRequestRepository.save(request);
+    }
+
+    @Override
+    public List<OwnerChangeRequest> getChangeRequestsByOwner(String username) {
+        return changeRequestRepository.findByRequesterUsername(username);
+    }
+
+    @Override
+    public List<PromotionRequest> getPromotionsByOwner(String username) {
+        return promotionRepository.findByRequesterUsername(username);
     }
 
     @Override
@@ -200,11 +219,15 @@ public class RestaurantOwnerServiceImpl implements RestaurantOwnerService {
         product.setRestaurant(restaurant);
         product.setName((String) payload.getOrDefault("name", "New Product"));
         product.setDescription((String) payload.getOrDefault("description", ""));
-        if (payload.containsKey("price"))
+        if (payload.containsKey("price") && payload.get("price") instanceof Number)
             product.setPrice(((Number) payload.get("price")).doubleValue());
-        product.setQuantity(100);
+        int quantity = 100;
+        if (payload.get("quantity") instanceof Number)
+            quantity = ((Number) payload.get("quantity")).intValue();
+        product.setQuantity(quantity);
         product.setCategory((String) payload.getOrDefault("category", "Other"));
         product.setImageUrl((String) payload.getOrDefault("imageUrl", ""));
+        product.setIsAvailable(true);
         productRepository.save(product);
     }
 
@@ -218,6 +241,10 @@ public class RestaurantOwnerServiceImpl implements RestaurantOwnerService {
             product.setPrice(((Number) payload.get("price")).doubleValue());
         if (payload.containsKey("category")) product.setCategory((String) payload.get("category"));
         if (payload.containsKey("imageUrl")) product.setImageUrl((String) payload.get("imageUrl"));
+        if (payload.containsKey("quantity") && payload.get("quantity") instanceof Number)
+            product.setQuantity(((Number) payload.get("quantity")).intValue());
+        if (payload.containsKey("isAvailable") && payload.get("isAvailable") instanceof Boolean)
+            product.setIsAvailable((Boolean) payload.get("isAvailable"));
         productRepository.save(product);
     }
 

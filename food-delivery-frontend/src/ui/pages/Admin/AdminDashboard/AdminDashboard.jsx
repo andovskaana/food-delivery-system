@@ -4,6 +4,7 @@ import {Link} from "react-router";
 import PeopleIcon from '@mui/icons-material/People';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import FastfoodIcon from '@mui/icons-material/Fastfood';
+import RuleIcon from '@mui/icons-material/Rule';
 
 const AdminDashboard = () => {
     return (
@@ -66,6 +67,23 @@ const AdminDashboard = () => {
                             </Typography>
                             <Button variant="contained" component={Link} to="/admin/products" fullWidth>
                                 Manage Products
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                    <Card>
+                        <CardContent sx={{ textAlign: 'center' }}>
+                            <RuleIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+                            <Typography variant="h5" gutterBottom>
+                                Owner Requests
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Review and approve owner change & promotion requests
+                            </Typography>
+                            <Button variant="contained" component={Link} to="/admin/owner-requests" fullWidth>
+                                Review Requests
                             </Button>
                         </CardContent>
                     </Card>

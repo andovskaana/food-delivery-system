@@ -137,8 +137,8 @@ const OrderRow = ({ o }) => {
     );
 };
 
-// Inline editable product row
-const ProductRow = ({ product, restaurantId, onSaved, onDeleted, showAlert }) => {
+// Inline editable product row — edits and deletes are submitted as change requests for admin approval
+const ProductRow = ({ product, restaurantId, onRequested, showAlert }) => {
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({ ...product });
     const [saving, setSaving] = useState(false);
@@ -146,23 +146,33 @@ const ProductRow = ({ product, restaurantId, onSaved, onDeleted, showAlert }) =>
     const save = async () => {
         setSaving(true);
         try {
-            await ownerRepository.editProduct(restaurantId, product.id, form);
+            const payload = {
+                name: form.name,
+                description: form.description,
+                price: form.price !== "" && form.price != null ? Number(form.price) : undefined,
+                category: form.category,
+                imageUrl: form.imageUrl,
+                quantity: form.quantity !== "" && form.quantity != null ? Number(form.quantity) : undefined,
+                isAvailable: form.isAvailable,
+            };
+            await ownerRepository.submitProductEditRequest(restaurantId, product.id, payload);
             setEditing(false);
-            onSaved();
-            showAlert("Product updated.", "success");
+            setForm({ ...product });
+            showAlert("Edit request submitted — waiting for admin approval.", "success");
+            onRequested && onRequested();
         } catch (e) {
-            showAlert("Save failed: " + (e.response?.data?.message || e.message), "error");
+            showAlert("Could not submit edit request: " + (e.response?.data?.message || e.message), "error");
         } finally { setSaving(false); }
     };
 
     const del = async () => {
-        if (!window.confirm(`Delete "${product.name}"?`)) return;
+        if (!window.confirm(`Submit a delete request for "${product.name}"? An admin must approve it before it is removed.`)) return;
         try {
-            await ownerRepository.deleteProduct(restaurantId, product.id);
-            onDeleted();
-            showAlert("Product deleted.", "success");
+            await ownerRepository.submitProductDeleteRequest(restaurantId, product.id);
+            showAlert("Delete request submitted — waiting for admin approval.", "success");
+            onRequested && onRequested();
         } catch (e) {
-            showAlert("Delete failed: " + (e.response?.data?.message || e.message), "error");
+            showAlert("Could not submit delete request: " + (e.response?.data?.message || e.message), "error");
         }
     };
 
@@ -209,13 +219,13 @@ const ProductRow = ({ product, restaurantId, onSaved, onDeleted, showAlert }) =>
             <TableCell align="right">
                 {editing ? (
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Tooltip title="Save"><IconButton size="small" color="success" onClick={save} disabled={saving}><SaveIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Submit edit request"><IconButton size="small" color="success" onClick={save} disabled={saving}><SaveIcon fontSize="small" /></IconButton></Tooltip>
                         <Tooltip title="Cancel"><IconButton size="small" onClick={() => { setEditing(false); setForm({ ...product }); }}><CloseIcon fontSize="small" /></IconButton></Tooltip>
                     </Stack>
                 ) : (
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                        <Tooltip title="Edit"><IconButton size="small" sx={{ color: SECONDARY }} onClick={() => setEditing(true)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Delete"><IconButton size="small" color="error" onClick={del}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Request edit"><IconButton size="small" sx={{ color: SECONDARY }} onClick={() => setEditing(true)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Request deletion"><IconButton size="small" color="error" onClick={del}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                     </Stack>
                 )}
             </TableCell>
@@ -229,6 +239,7 @@ const OwnerDashboard = () => {
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
     const [orders, setOrders] = useState([]);
     const [changeRequests, setChangeRequests] = useState([]);
+    const [promotions, setPromotions] = useState([]);
     const [analytics, setAnalytics] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [products, setProducts] = useState([]);
@@ -250,19 +261,56 @@ const OwnerDashboard = () => {
     const showAlert = (msg, severity = "info") => { setAlertMsg(msg); setAlertSeverity(severity); };
 
     const loadData = async () => {
+        // Restaurants are critical for the whole dashboard, so load them on their own.
+        // Auxiliary calls (orders / change requests / promotions) must never be able to
+        // blank the restaurant list if one of them fails.
         try {
-            const [restRes, ordersRes, reqRes] = await Promise.all([
-                ownerRepository.getMyRestaurants(),
-                ownerRepository.getMyOrders(),
-                ownerRepository.getMyChangeRequests(),
-            ]);
+            const restRes = await ownerRepository.getMyRestaurants();
             setRestaurants(restRes.data);
-            setOrders(ordersRes.data);
-            setChangeRequests(reqRes.data);
             if (restRes.data.length > 0) setSelectedRestaurant(restRes.data[0]);
         } catch (e) {
-            showAlert("Failed to load data: " + (e.response?.data?.message || e.message), "error");
-        } finally { setLoading(false); }
+            showAlert("Failed to load restaurants: " + (e.response?.data?.message || e.message), "error");
+        } finally {
+            setLoading(false);
+        }
+
+        const [ordersRes, reqRes, promoRes] = await Promise.allSettled([
+            ownerRepository.getMyOrders(),
+            ownerRepository.getMyChangeRequests(),
+            ownerRepository.getMyPromotions(),
+        ]);
+        if (ordersRes.status === "fulfilled") setOrders(ordersRes.value.data);
+        if (reqRes.status === "fulfilled") setChangeRequests(reqRes.value.data);
+        if (promoRes.status === "fulfilled") setPromotions(promoRes.value.data);
+
+        const failed = [];
+        if (ordersRes.status === "rejected") failed.push("orders");
+        if (reqRes.status === "rejected") failed.push("change requests");
+        if (promoRes.status === "rejected") failed.push("promotions");
+        if (failed.length) {
+            const status = reqRes.reason?.response?.status ?? promoRes.reason?.response?.status ?? ordersRes.reason?.response?.status;
+            showAlert(
+                `Couldn't load: ${failed.join(", ")}. ` +
+                (status === 404
+                    ? "These use newer endpoints — rebuild and restart the backend so /api/owner/promotions and /api/owner/my-change-requests are available."
+                    : "Please try again."),
+                "warning"
+            );
+        }
+    };
+
+    const loadChangeRequests = async () => {
+        try {
+            const res = await ownerRepository.getMyChangeRequests();
+            setChangeRequests(res.data);
+        } catch (e) { /* non-fatal */ }
+    };
+
+    const loadPromotions = async () => {
+        try {
+            const res = await ownerRepository.getMyPromotions();
+            setPromotions(res.data);
+        } catch (e) { /* non-fatal */ }
     };
 
     const loadProducts = async (restaurantId) => {
@@ -296,6 +344,7 @@ const OwnerDashboard = () => {
             await ownerRepository.submitRestaurantChangeRequest(selectedRestaurant.id, editDialog.payload);
             showAlert("Change request submitted — waiting for admin approval.", "success");
             setEditDialog({ open: false, type: null, payload: {} });
+            loadChangeRequests();
         } catch (e) { showAlert("Error: " + (e.response?.data?.message || e.message), "error"); }
     };
 
@@ -312,6 +361,7 @@ const OwnerDashboard = () => {
             showAlert("Promotion submitted — waiting for admin approval.", "success");
             setPromoDialog({ open: false });
             setPromoData({ promotionName: "", discountPercent: "", discountAmount: "", description: "", validFrom: "", validUntil: "" });
+            loadPromotions();
         } catch (e) { showAlert("Error: " + (e.response?.data?.message || e.message), "error"); }
     };
 
@@ -321,9 +371,9 @@ const OwnerDashboard = () => {
         try {
             const res = await ownerRepository.importMenuCsv(selectedRestaurant.id, csvFile);
             setCsvResult(res.data);
-            if (res.data.imported > 0) {
-                showAlert(`✅ Imported ${res.data.imported} products!`, "success");
-                if (tab === 1) loadProducts(selectedRestaurant.id);
+            if (res.data.submitted > 0) {
+                showAlert(`✅ ${res.data.submitted} product(s) submitted for admin approval!`, "success");
+                loadChangeRequests();
             }
         } catch (e) {
             setCsvResult({ error: e.response?.data?.error || e.message });
@@ -407,7 +457,7 @@ const OwnerDashboard = () => {
                             </Stack>
                             <Divider sx={{ my: 2 }} />
                             <Typography variant="caption" color="text.secondary">
-                                Restaurant info changes require admin approval. Menu edits and CSV imports are applied immediately.
+                                Restaurant info changes, menu edits and deletions, and CSV imports all require admin approval before they take effect.
                             </Typography>
                         </SectionCard>
                     </Grid>
@@ -419,7 +469,7 @@ const OwnerDashboard = () => {
                 <Card sx={{ boxShadow: "0 1px 8px rgba(0,0,0,0.07)", borderRadius: 2 }}>
                     <CardHeader
                         title={<Typography variant="h6" fontWeight={700}>Menu — {selectedRestaurant?.name}</Typography>}
-                        subheader="Click the edit icon to change any product. Changes apply immediately."
+                        subheader="Edit or delete a product to submit a change request. Changes take effect only after an admin approves them."
                         action={
                             <Stack direction="row" spacing={1} mr={1} alignItems="center">
                                 <TextField size="small" placeholder="Filter by name or category…" value={menuFilter}
@@ -445,8 +495,7 @@ const OwnerDashboard = () => {
                                     <TableBody>
                                         {filteredProducts.map(p => (
                                             <ProductRow key={p.id} product={p} restaurantId={selectedRestaurant.id}
-                                                        onSaved={() => loadProducts(selectedRestaurant.id)}
-                                                        onDeleted={() => loadProducts(selectedRestaurant.id)}
+                                                        onRequested={loadChangeRequests}
                                                         showAlert={showAlert} />
                                         ))}
                                         {filteredProducts.length === 0 && (
@@ -637,10 +686,11 @@ const OwnerDashboard = () => {
                     <Grid item xs={12} md={6}>
                         <Card sx={{ boxShadow: "0 1px 8px rgba(0,0,0,0.07)", borderRadius: 2 }}>
                             <CardHeader title={<Typography variant="h6" fontWeight={700}>Import Menu from CSV</Typography>}
-                                        subheader={`Products added directly to ${selectedRestaurant?.name} — no approval needed`} />
+                                        subheader={`Rows are submitted as product-add requests for ${selectedRestaurant?.name} — admin approval required`} />
                             <CardContent>
                                 <Alert severity="info" sx={{ mb: 3 }}>
-                                    Products are saved <strong>immediately</strong> and visible to customers right away.
+                                    Each row is submitted as a <strong>product-add change request</strong>. Items appear to
+                                    customers only after an admin approves them in the Owner Requests panel.
                                     Include an <code>imageUrl</code> column with a public image link to show product photos.
                                 </Alert>
                                 <Box onClick={() => fileInputRef.current?.click()}
@@ -671,12 +721,12 @@ const OwnerDashboard = () => {
                                 {csvResult && !csvResult.error && (
                                     <Box mt={3}>
                                         <Stack direction="row" spacing={2} mb={2}>
-                                            <Chip icon={<CheckCircleIcon />} label={`${csvResult.imported} imported`} color="success" />
+                                            <Chip icon={<CheckCircleIcon />} label={`${csvResult.submitted} submitted for approval`} color="success" />
                                             {csvResult.errors > 0 && <Chip icon={<ErrorIcon />} label={`${csvResult.errors} skipped`} color="warning" />}
                                         </Stack>
-                                        {csvResult.importedProducts?.length > 0 && (
+                                        {csvResult.submittedProducts?.length > 0 && (
                                             <Box sx={{ maxHeight: 200, overflowY: "auto", bgcolor: "#f8fafc", borderRadius: 1, p: 1.5 }}>
-                                                {csvResult.importedProducts.map((name, i) => (
+                                                {csvResult.submittedProducts.map((name, i) => (
                                                     <Stack key={i} direction="row" alignItems="center" spacing={1} py={0.3}>
                                                         <CheckCircleIcon sx={{ fontSize: 14, color: "success.main" }} />
                                                         <Typography variant="body2">{name}</Typography>
@@ -755,12 +805,51 @@ Coca Cola,330ml,80,Drinks,,200`}
                     <CardHeader title={<Typography variant="h6" fontWeight={700}>Promotions & Discounts</Typography>}
                                 subheader="All promotions require admin approval before customers see them"
                                 action={<Button variant="contained" sx={{ bgcolor: PRIMARY, mr: 1 }} onClick={() => setPromoDialog({ open: true })}>+ New Promotion</Button>} />
-                    <CardContent>
-                        <Box sx={{ p: 3, bgcolor: "#fff7ed", borderRadius: 2, border: "1px solid #fed7aa" }}>
+                    <CardContent sx={{ pt: 0 }}>
+                        <Box sx={{ p: 2, mb: 2, bgcolor: "#fff7ed", borderRadius: 2, border: "1px solid #fed7aa" }}>
                             <Typography variant="body2" color="#92400e">
                                 💡 Promotions can be a fixed МКД discount or a percentage off. Once approved, customers see it at checkout.
                             </Typography>
                         </Box>
+                        {promotions.length === 0 ? (
+                            <Box p={4} textAlign="center">
+                                <LocalOfferIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+                                <Typography color="text.secondary">No promotions submitted yet.</Typography>
+                            </Box>
+                        ) : (
+                            <TableContainer>
+                                <Table>
+                                    <TableHead sx={{ bgcolor: "#f1f5f9" }}>
+                                        <TableRow>
+                                            {["Name", "Restaurant", "Discount", "Status", "Active", "Submitted", "Reason"].map(h => (
+                                                <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", color: "text.secondary", letterSpacing: 0.5 }}>{h}</TableCell>
+                                            ))}
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {promotions.map(p => (
+                                            <TableRow key={p.id} sx={{ "&:hover": { bgcolor: "#fafafa" } }}>
+                                                <TableCell>
+                                                    <Stack>
+                                                        <Typography fontWeight={600}>{p.promotionName || "—"}</Typography>
+                                                        {p.description && <Typography variant="caption" color="text.secondary">{p.description}</Typography>}
+                                                    </Stack>
+                                                </TableCell>
+                                                <TableCell sx={{ color: "text.secondary" }}>{p.restaurantName || `#${p.restaurantId}`}</TableCell>
+                                                <TableCell>
+                                                    <Chip size="small" sx={{ bgcolor: "#fff7ed", color: PRIMARY, fontWeight: 700 }}
+                                                          label={p.discountPercent ? `${p.discountPercent}%` : p.discountAmount ? `${p.discountAmount} МКД` : "—"} />
+                                                </TableCell>
+                                                <TableCell><Chip label={p.status} size="small" color={STATUS_COLORS[p.status] || "default"} /></TableCell>
+                                                <TableCell>{p.active ? <Chip label="Live" size="small" color="success" /> : <Chip label="No" size="small" variant="outlined" />}</TableCell>
+                                                <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}</TableCell>
+                                                <TableCell sx={{ color: "error.main", fontSize: 13 }}>{p.rejectionReason || "—"}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
                     </CardContent>
                 </Card>
             )}

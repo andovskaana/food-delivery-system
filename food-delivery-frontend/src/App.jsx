@@ -27,6 +27,7 @@ import AdminUsers from './ui/pages/Admin/Users/AdminUsers.jsx'
 import AdminRestaurants from './ui/pages/Admin/Restaurants/AdminRestaurants.jsx'
 import AdminProducts from './ui/pages/Admin/Products/AdminProducts.jsx'
 import CourierAuditPage from './ui/pages/Admin/CourierAuditPage.jsx'
+import AdminOwnerRequests from './ui/pages/Admin/OwnerRequests/AdminOwnerRequests.jsx'
 
 // Restaurant Owner pages
 import OwnerDashboard from './ui/pages/RestaurantOwner/OwnerDashboard.jsx'
@@ -82,6 +83,7 @@ App.routes = createRoutesFromElements(
             <Route path="restaurants" element={<AdminRestaurants/>}/>
             <Route path="products" element={<AdminProducts/>}/>
             <Route path="couriers" element={<CourierAuditPage/>}/>
+            <Route path="owner-requests" element={<AdminOwnerRequests/>}/>
         </Route>
 
         {/* User routes */}

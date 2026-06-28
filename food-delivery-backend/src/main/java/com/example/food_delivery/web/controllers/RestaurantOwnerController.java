@@ -176,8 +176,7 @@ public class RestaurantOwnerController {
         try {
             String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
             OwnerChangeRequest req = ownerService.submitChangeRequest(
-                    user.getUsername(), restaurantId, "PRODUCT_UPDATE", json);
-            req.setTargetProductId(productId);
+                    user.getUsername(), restaurantId, "PRODUCT_UPDATE", json, productId);
             return ResponseEntity.ok(ChangeRequestDto.from(req));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -192,8 +191,7 @@ public class RestaurantOwnerController {
         try {
             String json = "{\"productId\":" + productId + "}";
             OwnerChangeRequest req = ownerService.submitChangeRequest(
-                    user.getUsername(), restaurantId, "PRODUCT_DELETE", json);
-            req.setTargetProductId(productId);
+                    user.getUsername(), restaurantId, "PRODUCT_DELETE", json, productId);
             return ResponseEntity.ok(ChangeRequestDto.from(req));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -202,9 +200,23 @@ public class RestaurantOwnerController {
 
     @GetMapping("/my-change-requests")
     public ResponseEntity<List<ChangeRequestDto>> getMyChangeRequests(@AuthenticationPrincipal User user) {
-        List<ChangeRequestDto> result = ownerService.getPendingChangeRequests().stream()
-                .filter(r -> r.getRequester().getUsername().equals(user.getUsername()))
+        List<ChangeRequestDto> result = ownerService.getChangeRequestsByOwner(user.getUsername()).stream()
                 .map(ChangeRequestDto::from)
+                .sorted(Comparator.comparing(
+                        (ChangeRequestDto r) -> r.createdAt() == null ? Instant.MIN : r.createdAt(),
+                        Comparator.reverseOrder()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    /** Owner: list all promotion requests this owner has submitted (any status) */
+    @GetMapping("/promotions")
+    public ResponseEntity<List<PromotionRequestDto>> getMyPromotions(@AuthenticationPrincipal User user) {
+        List<PromotionRequestDto> result = ownerService.getPromotionsByOwner(user.getUsername()).stream()
+                .map(PromotionRequestDto::from)
+                .sorted(Comparator.comparing(
+                        (PromotionRequestDto p) -> p.createdAt() == null ? Instant.MIN : p.createdAt(),
+                        Comparator.reverseOrder()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(result);
     }
@@ -243,9 +255,6 @@ public class RestaurantOwnerController {
             return ResponseEntity.status(403).body(Map.of("error", "You do not own this restaurant"));
         }
 
-        Restaurant restaurant = restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new RuntimeException("Restaurant not found"));
-
         List<String> errors = new ArrayList<>();
         List<String> imported = new ArrayList<>();
 
@@ -280,9 +289,18 @@ public class RestaurantOwnerController {
                     String qtyStr      = get(values, col, "quantity", "100").trim();
                     int quantity = qtyStr.isEmpty() ? 100 : Integer.parseInt(qtyStr);
 
-                    Product product = new Product(name, description, price, quantity, restaurant, category, imageUrl);
-                    product.setIsAvailable(true);
-                    productRepository.save(product);
+                    // Instead of saving directly, submit each row as a PRODUCT_ADD change
+                    // request so an admin must approve it before it becomes a live product.
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("name", name);
+                    payload.put("description", description);
+                    payload.put("price", price);
+                    payload.put("category", category);
+                    payload.put("imageUrl", imageUrl);
+                    payload.put("quantity", quantity);
+
+                    String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
+                    ownerService.submitChangeRequest(user.getUsername(), restaurantId, "PRODUCT_ADD", json);
                     imported.add(name);
                 } catch (NumberFormatException e) {
                     errors.add("Row " + rowNum + ": invalid number — " + e.getMessage());
@@ -295,9 +313,9 @@ public class RestaurantOwnerController {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("imported", imported.size());
+        result.put("submitted", imported.size());
         result.put("errors", errors.size());
-        result.put("importedProducts", imported);
+        result.put("submittedProducts", imported);
         if (!errors.isEmpty()) result.put("errorDetails", errors);
         return ResponseEntity.ok(result);
     }

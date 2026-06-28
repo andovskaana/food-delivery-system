@@ -33,6 +33,12 @@ public interface PromotionRequestRepository extends JpaRepository<PromotionReque
             @Param("product") Product product,
             @Param("now") Instant now);
 
+    /** All active approved promotions (restaurant-wide and product-specific) currently valid */
+    @Query("SELECT p FROM PromotionRequest p WHERE p.status = 'APPROVED' AND p.active = true " +
+           "AND (p.validFrom IS NULL OR p.validFrom <= :now) " +
+           "AND (p.validUntil IS NULL OR p.validUntil > :now)")
+    List<PromotionRequest> findAllActive(@Param("now") Instant now);
+
     @Query("SELECT p FROM PromotionRequest p WHERE p.requester.username = :username")
     List<PromotionRequest> findByRequesterUsername(@Param("username") String username);
 }
