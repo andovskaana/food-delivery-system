@@ -224,11 +224,30 @@ public class RestaurantOwnerController {
     @PostMapping("/restaurants/{restaurantId}/promotions")
     public ResponseEntity<PromotionRequestDto> submitPromotion(
             @PathVariable Long restaurantId,
-            @RequestBody PromotionRequest request,
+            @RequestBody CreatePromotionRequestDto requestDto,
             @AuthenticationPrincipal User user) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));
+
+        PromotionRequest request = new PromotionRequest();
         request.setRestaurant(restaurant);
+        request.setPromotionName(requestDto.promotionName());
+        request.setDescription(requestDto.description());
+        request.setDiscountPercent(requestDto.discountPercent());
+        request.setDiscountAmount(requestDto.discountAmount());
+        request.setValidFrom(requestDto.validFrom());
+        request.setValidUntil(requestDto.validUntil());
+
+        Long targetProductId = requestDto.resolvedTargetProductId();
+        if (targetProductId != null) {
+            Product targetProduct = productRepository.findById(targetProductId)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+            if (targetProduct.getRestaurant() == null || !targetProduct.getRestaurant().getId().equals(restaurantId)) {
+                throw new RuntimeException("Selected product does not belong to this restaurant");
+            }
+            request.setTargetProduct(targetProduct);
+        }
+
         PromotionRequest saved = ownerService.submitPromotion(user.getUsername(), request);
         return ResponseEntity.ok(PromotionRequestDto.from(saved));
     }

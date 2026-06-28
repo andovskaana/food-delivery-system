@@ -88,15 +88,41 @@ public class RestaurantOwnerServiceImpl implements RestaurantOwnerService {
     @Override
     @Transactional
     public PromotionRequest submitPromotion(String username, PromotionRequest request) {
+        if (request.getRestaurant() == null || request.getRestaurant().getId() == null) {
+            throw new RuntimeException("Restaurant is required for a promotion");
+        }
         if (!ownsRestaurant(username, request.getRestaurant().getId())) {
             throw new RuntimeException("You do not own this restaurant");
         }
+        validatePromotionRequest(request);
+
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         request.setRequester(user);
         request.setStatus(ChangeRequestStatus.PENDING);
         request.setActive(false);
+        request.setRejectionReason(null);
+        request.setReviewedAt(null);
+        request.setReviewedBy(null);
+        request.setCreatedAt(Instant.now());
         return promotionRepository.save(request);
+    }
+
+
+    private void validatePromotionRequest(PromotionRequest request) {
+        boolean hasPercent = request.getDiscountPercent() != null && request.getDiscountPercent() > 0;
+        boolean hasAmount = request.getDiscountAmount() != null && request.getDiscountAmount() > 0;
+
+        if (!hasPercent && !hasAmount) {
+            throw new RuntimeException("Promotion must have either a percentage or fixed discount");
+        }
+        if (hasPercent && request.getDiscountPercent() > 100) {
+            throw new RuntimeException("Discount percentage cannot be greater than 100");
+        }
+        if (request.getValidFrom() != null && request.getValidUntil() != null
+                && !request.getValidUntil().isAfter(request.getValidFrom())) {
+            throw new RuntimeException("Promotion end date must be after start date");
+        }
     }
 
     @Override

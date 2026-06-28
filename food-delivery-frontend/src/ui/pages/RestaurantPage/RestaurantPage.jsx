@@ -28,6 +28,8 @@ import Alert from "../../../common/Alert.jsx";
 import Tooltip from "@mui/material/Tooltip";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
 import sentimentRepository from "../../../repository/sentimentRepository.js";
+import promotionRepository from "../../../repository/promotionRepository.js";
+import ActivePromotionsBanner from "../../components/promotions/ActivePromotionsBanner.jsx";
 
 
 /** Helpers */
@@ -78,10 +80,9 @@ const KorpaRowCard = ({ product, onAdd }) => {
     const computedDiscounted =
         discountPct != null ? basePrice * (1 - Number(discountPct) / 100) : null;
 
-    const hasDiscount = Boolean(oldPrice) || discountPct != null;
-    const newPrice = hasDiscount
-        ? Number(product.discountedPrice ?? computedDiscounted ?? basePrice)
-        : basePrice;
+    const newPriceCandidate = Number(product.discountedPrice ?? computedDiscounted ?? basePrice);
+    const hasDiscount = Boolean(oldPrice) || (Number.isFinite(newPriceCandidate) && newPriceCandidate < basePrice);
+    const newPrice = hasDiscount ? newPriceCandidate : basePrice;
 
     return (
         <Card
@@ -155,7 +156,7 @@ const KorpaRowCard = ({ product, onAdd }) => {
                     {hasDiscount && (
                         <Chip
                             size="small"
-                            label="АКЦИЈА"
+                            label={product.promotionName || "АКЦИЈА"}
                             color="warning"
                             sx={{ fontWeight: 600 }}
                         />
@@ -235,6 +236,7 @@ const RestaurantPage = () => {
     const [restaurant, setRestaurant] = useState(null);
     const [products, setProducts] = useState([]);
     const [reviews, setReviews] = useState([]);
+    const [activePromotions, setActivePromotions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Derived open/closed
@@ -258,14 +260,16 @@ const RestaurantPage = () => {
             restaurantRepository.findById(id),
             productRepository.findAll(),
             reviewRepository.list(id),
+            promotionRepository.findActiveByRestaurant(id),
         ])
-            .then(([r, p, rv]) => {
+            .then(([r, p, rv, promo]) => {
                 if (!active) return;
                 setRestaurant(r.data);
                 setProducts(
                     p.data.filter((x) => String(x.restaurantId) === String(id))
                 );
                 setReviews(rv.data);
+                setActivePromotions(promo.data || []);
                 setLoading(false);
             })
             .catch((err) => {
@@ -456,6 +460,12 @@ const RestaurantPage = () => {
                     )}
                 </CardContent>
             </Card>
+
+            <ActivePromotionsBanner
+                promotions={activePromotions}
+                title="Available offers in this restaurant"
+                compact
+            />
 
             {/* Category navigation */}
             {!!categories.length && (

@@ -8,18 +8,36 @@ public record DisplayProductDetailsDto(
         String description,
         Double price,
         Integer quantity,
-        DisplayRestaurantDto restaurant
+        String category,
+        String imageUrl,
+        Boolean isAvailable,
+        DisplayRestaurantDto restaurant,
+        Double discountPercent,
+        Double discountedPrice,
+        String promotionName
 ) {
 
-    public static DisplayProductDetailsDto from(Product Product) {
-        return new DisplayProductDetailsDto(
-                Product.getId(),
-                Product.getName(),
-                Product.getDescription(),
-                Product.getPrice(),
-                Product.getQuantity(),
-                DisplayRestaurantDto.from(Product.getRestaurant())
-        );
+    public static DisplayProductDetailsDto from(Product product) {
+        return from(product, null, null, null);
     }
 
+    public static DisplayProductDetailsDto from(Product product,
+                                                Double discountPercent,
+                                                Double discountedPrice,
+                                                String promotionName) {
+        return new DisplayProductDetailsDto(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getQuantity(),
+                product.getCategory(),
+                product.getImageUrl(),
+                product.getIsAvailable(),
+                DisplayRestaurantDto.from(product.getRestaurant()),
+                discountPercent,
+                discountedPrice,
+                promotionName
+        );
+    }
 }

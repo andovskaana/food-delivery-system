@@ -83,6 +83,7 @@ public class JwtSecurityWebConfig {
                                 "/api/products",
                                 "/api/products/{id}",
                                 "/api/products/details/{id}",
+                                "/api/promotions/**",
                                 "/api/reviews/**",
                                 "/api/orders/address/{id}",
                                 "/api/user/{username}/password",

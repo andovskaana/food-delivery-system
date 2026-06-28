@@ -3,15 +3,20 @@ package com.example.food_delivery.service.domain.impl;
 import com.example.food_delivery.model.domain.Order;
 import com.example.food_delivery.model.domain.OrderItem;
 import com.example.food_delivery.model.domain.Product;
+import com.example.food_delivery.model.domain.PromotionRequest;
 import com.example.food_delivery.model.exceptions.ProductOutOfStockException;
 import com.example.food_delivery.repository.OrderItemRepository;
 import com.example.food_delivery.repository.OrderRepository;
 import com.example.food_delivery.repository.ProductRepository;
+import com.example.food_delivery.repository.PromotionRequestRepository;
 import com.example.food_delivery.service.domain.OrderTotalsService;
 import com.example.food_delivery.service.domain.ProductService;
+import com.example.food_delivery.util.PromotionDiscountCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,15 +27,18 @@ public class ProductServiceImpl implements ProductService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderTotalsService orderTotalsService;
+    private final PromotionRequestRepository promotionRepository;
 
     public ProductServiceImpl(ProductRepository ProductRepository,
                            OrderRepository orderRepository,
                            OrderItemRepository orderItemRepository,
-                           OrderTotalsService orderTotalsService) {
+                           OrderTotalsService orderTotalsService,
+                           PromotionRequestRepository promotionRepository) {
         this.productRepository = ProductRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderTotalsService = orderTotalsService;
+        this.promotionRepository = promotionRepository;
     }
 
     @Override
@@ -98,7 +106,7 @@ public class ProductServiceImpl implements ProductService {
         item.setOrder(order);
         item.setProduct(product);
         item.setQuantity(1);
-        item.setUnitPriceSnapshot(product.getPrice());
+        item.setUnitPriceSnapshot(resolveActiveUnitPrice(product));
         order.getItems().add(item);
         orderItemRepository.save(item);
 
@@ -106,6 +114,14 @@ public class ProductServiceImpl implements ProductService {
         orderTotalsService.setFeesAndRecalculate(order, order.getRestaurant());
 
         return orderRepository.save(order);
+    }
+
+    private double resolveActiveUnitPrice(Product product) {
+        Instant now = Instant.now();
+        List<PromotionRequest> applicable = new ArrayList<>();
+        applicable.addAll(promotionRepository.findActiveByRestaurant(product.getRestaurant(), now));
+        applicable.addAll(promotionRepository.findActiveByProduct(product, now));
+        return PromotionDiscountCalculator.bestUnitPrice(product, applicable);
     }
 
     @Override

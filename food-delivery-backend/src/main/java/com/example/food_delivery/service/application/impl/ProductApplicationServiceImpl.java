@@ -11,6 +11,7 @@ import com.example.food_delivery.model.domain.Restaurant;
 import com.example.food_delivery.model.exceptions.ProductNotFoundException;
 import com.example.food_delivery.model.exceptions.RestaurantNotFoundException;
 import com.example.food_delivery.repository.PromotionRequestRepository;
+import com.example.food_delivery.util.PromotionDiscountCalculator;
 import com.example.food_delivery.service.application.ProductApplicationService;
 import com.example.food_delivery.service.domain.OrderService;
 import com.example.food_delivery.service.domain.ProductService;
@@ -79,9 +80,13 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
 
     @Override
     public Optional<DisplayProductDetailsDto> findByIdWithDetails(Long id) {
-        return productService
-                .findById(id)
-                .map(DisplayProductDetailsDto::from);
+        return productService.findById(id).map(p -> {
+            Instant now = Instant.now();
+            List<PromotionRequest> applicable = new ArrayList<>();
+            applicable.addAll(promotionRepository.findActiveByRestaurant(p.getRestaurant(), now));
+            applicable.addAll(promotionRepository.findActiveByProduct(p, now));
+            return applyBestPromotionToDetails(p, applicable);
+        });
     }
 
     @Override
@@ -137,31 +142,23 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
      * lowers the price, returns the plain product DTO.
      */
     private DisplayProductDto applyBestPromotion(Product product, List<PromotionRequest> promos) {
-        double price = product.getPrice() != null ? product.getPrice() : 0.0;
-        if (price <= 0 || promos.isEmpty()) return DisplayProductDto.from(product);
+        return PromotionDiscountCalculator.bestFor(product, promos)
+                .map(price -> DisplayProductDto.from(
+                        product,
+                        price.discountPercent(),
+                        price.discountedPrice(),
+                        price.promotionName()))
+                .orElseGet(() -> DisplayProductDto.from(product));
+    }
 
-        Double bestPrice = null;
-        String bestName = null;
-        for (PromotionRequest promo : promos) {
-            Double discounted = null;
-            if (promo.getDiscountPercent() != null && promo.getDiscountPercent() > 0) {
-                discounted = price * (1.0 - promo.getDiscountPercent() / 100.0);
-            } else if (promo.getDiscountAmount() != null && promo.getDiscountAmount() > 0) {
-                discounted = price - promo.getDiscountAmount();
-            }
-            if (discounted == null) continue;
-            if (discounted < 0) discounted = 0.0;
-            if (bestPrice == null || discounted < bestPrice) {
-                bestPrice = discounted;
-                bestName = promo.getPromotionName();
-            }
-        }
-
-        if (bestPrice == null || bestPrice >= price) return DisplayProductDto.from(product);
-
-        double roundedPrice = Math.round(bestPrice * 100.0) / 100.0;
-        double percent = Math.round((1.0 - roundedPrice / price) * 100.0);
-        return DisplayProductDto.from(product, percent, roundedPrice, bestName);
+    private DisplayProductDetailsDto applyBestPromotionToDetails(Product product, List<PromotionRequest> promos) {
+        return PromotionDiscountCalculator.bestFor(product, promos)
+                .map(price -> DisplayProductDetailsDto.from(
+                        product,
+                        price.discountPercent(),
+                        price.discountedPrice(),
+                        price.promotionName()))
+                .orElseGet(() -> DisplayProductDetailsDto.from(product));
     }
 
 }

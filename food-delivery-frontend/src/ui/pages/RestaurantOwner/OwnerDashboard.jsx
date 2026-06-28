@@ -247,7 +247,8 @@ const OwnerDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [editDialog, setEditDialog] = useState({ open: false, type: null, payload: {} });
     const [promoDialog, setPromoDialog] = useState({ open: false });
-    const [promoData, setPromoData] = useState({ promotionName: "", discountPercent: "", discountAmount: "", description: "", validFrom: "", validUntil: "" });
+    const emptyPromoData = { promotionName: "", discountPercent: "", discountAmount: "", description: "", validFrom: "", validUntil: "", targetProductId: "" };
+    const [promoData, setPromoData] = useState(emptyPromoData);
     const [alertMsg, setAlertMsg] = useState(null);
     const [alertSeverity, setAlertSeverity] = useState("info");
     const [csvFile, setCsvFile] = useState(null);
@@ -335,9 +336,15 @@ const OwnerDashboard = () => {
 
     useEffect(() => {
         if (!selectedRestaurant) return;
-        if (tab === 1) loadProducts(selectedRestaurant.id);
+        if (tab === 1 || tab === 6) loadProducts(selectedRestaurant.id);
         if (tab === 4) loadAnalytics(selectedRestaurant.id);
     }, [selectedRestaurant, tab]);
+
+    useEffect(() => {
+        if (promoDialog.open && selectedRestaurant) {
+            loadProducts(selectedRestaurant.id);
+        }
+    }, [promoDialog.open, selectedRestaurant?.id]);
 
     const submitRestaurantEdit = async () => {
         try {
@@ -356,11 +363,12 @@ const OwnerDashboard = () => {
                 discountAmount: promoData.discountAmount ? Number(promoData.discountAmount) : null,
                 validFrom: promoData.validFrom ? new Date(promoData.validFrom).toISOString() : null,
                 validUntil: promoData.validUntil ? new Date(promoData.validUntil).toISOString() : null,
+                targetProductId: promoData.targetProductId ? Number(promoData.targetProductId) : null,
             };
             await ownerRepository.submitPromotion(selectedRestaurant.id, payload);
             showAlert("Promotion submitted — waiting for admin approval.", "success");
             setPromoDialog({ open: false });
-            setPromoData({ promotionName: "", discountPercent: "", discountAmount: "", description: "", validFrom: "", validUntil: "" });
+            setPromoData(emptyPromoData);
             loadPromotions();
         } catch (e) { showAlert("Error: " + (e.response?.data?.message || e.message), "error"); }
     };
@@ -821,7 +829,7 @@ Coca Cola,330ml,80,Drinks,,200`}
                                 <Table>
                                     <TableHead sx={{ bgcolor: "#f1f5f9" }}>
                                         <TableRow>
-                                            {["Name", "Restaurant", "Discount", "Status", "Active", "Submitted", "Reason"].map(h => (
+                                            {["Name", "Restaurant", "Scope", "Discount", "Status", "Active", "Submitted", "Reason"].map(h => (
                                                 <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", color: "text.secondary", letterSpacing: 0.5 }}>{h}</TableCell>
                                             ))}
                                         </TableRow>
@@ -836,6 +844,7 @@ Coca Cola,330ml,80,Drinks,,200`}
                                                     </Stack>
                                                 </TableCell>
                                                 <TableCell sx={{ color: "text.secondary" }}>{p.restaurantName || `#${p.restaurantId}`}</TableCell>
+                                                <TableCell sx={{ color: "text.secondary" }}>{p.productName || "All products"}</TableCell>
                                                 <TableCell>
                                                     <Chip size="small" sx={{ bgcolor: "#fff7ed", color: PRIMARY, fontWeight: 700 }}
                                                           label={p.discountPercent ? `${p.discountPercent}%` : p.discountAmount ? `${p.discountAmount} МКД` : "—"} />
@@ -876,6 +885,24 @@ Coca Cola,330ml,80,Drinks,,200`}
                 <DialogTitle sx={{ fontWeight: 700 }}>Create Promotion Request</DialogTitle>
                 <DialogContent>
                     <Alert severity="warning" sx={{ mb: 2 }}>Promotions require admin approval.</Alert>
+
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                        <InputLabel id="promotion-scope-label">Promotion Scope</InputLabel>
+                        <Select
+                            labelId="promotion-scope-label"
+                            label="Promotion Scope"
+                            value={promoData.targetProductId}
+                            onChange={(e) => setPromoData(prev => ({ ...prev, targetProductId: e.target.value }))}
+                        >
+                            <MenuItem value="">All products in {selectedRestaurant?.name || "restaurant"}</MenuItem>
+                            {products.map((product) => (
+                                <MenuItem key={product.id} value={product.id}>
+                                    {product.name} · {Number(product.price || 0).toFixed(0)} МКД
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
                     {[{ key: "promotionName", label: "Promotion Name" }, { key: "description", label: "Description" },
                         { key: "discountPercent", label: "Discount %", type: "number" }, { key: "discountAmount", label: "Fixed Discount (МКД)", type: "number" },
                         { key: "validFrom", label: "Valid From", type: "datetime-local" }, { key: "validUntil", label: "Valid Until", type: "datetime-local" }

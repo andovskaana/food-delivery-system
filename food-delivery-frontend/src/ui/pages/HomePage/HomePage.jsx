@@ -17,6 +17,8 @@ import useAuth from "../../../hooks/useAuth.js";
 import PopularRecommendations from "../../components/recommendations/PopularRecommendations.jsx";
 import sentimentRepository from "../../../repository/sentimentRepository.js";
 import RfmPromotionBanner from "../../components/promotions/RfmPromotionBanner.jsx";
+import ActivePromotionsBanner from "../../components/promotions/ActivePromotionsBanner.jsx";
+import promotionRepository from "../../../repository/promotionRepository.js";
 import SegmentRecommendations from "../../components/recommendations/SegmentRecommendations.jsx";
 
 
@@ -54,7 +56,7 @@ const isOpenAt = (nowMin, intervals) => {
 };
 
 /* ---------- Restaurant card ---------- */
-const RestaurantCard = ({ restaurant }) => {
+const RestaurantCard = ({ restaurant, promotions = [] }) => {
     const [isOpenNow, setIsOpenNow] = useState(false);
     const [sentiment, setSentiment] = useState(null); // NEW
 
@@ -188,6 +190,14 @@ const RestaurantCard = ({ restaurant }) => {
                         size="small"
                         variant="outlined"
                     />
+
+                    {promotions.length > 0 && (
+                        <Chip
+                            label={`${promotions.length} active offer${promotions.length > 1 ? "s" : ""}`}
+                            size="small"
+                            sx={{ bgcolor: "#fff7ed", color: "#c2410c", fontWeight: 700 }}
+                        />
+                    )}
                 </Box>
             </CardContent>
 
@@ -210,6 +220,7 @@ const RestaurantCard = ({ restaurant }) => {
 /* ---------- Page ---------- */
 const HomePage = () => {
     const [restaurants, setRestaurants] = useState([]);
+    const [activePromotions, setActivePromotions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeCategory, setActiveCategory] = useState("All");
@@ -217,14 +228,23 @@ const HomePage = () => {
 
     useEffect(() => {
         let active = true;
-        restaurantRepository
-            .findAll()
-            .then((res) => {
+
+        Promise.allSettled([
+            restaurantRepository.findAll(),
+            promotionRepository.findActive(),
+        ])
+            .then(([restaurantsResult, promotionsResult]) => {
                 if (!active) return;
-                setRestaurants(res.data || []);
+                if (restaurantsResult.status === "fulfilled") {
+                    setRestaurants(restaurantsResult.value.data || []);
+                }
+                if (promotionsResult.status === "fulfilled") {
+                    setActivePromotions(promotionsResult.value.data || []);
+                }
                 setLoading(false);
             })
             .catch(() => setLoading(false));
+
         return () => {
             active = false;
         };
@@ -239,6 +259,14 @@ const HomePage = () => {
         const list = [...set].sort((a, b) => a.localeCompare(b));
         return ["All", ...list];
     }, [restaurants]);
+
+    const promotionsByRestaurant = useMemo(() => {
+        return (activePromotions || []).reduce((acc, promotion) => {
+            const key = String(promotion.restaurantId);
+            (acc[key] ||= []).push(promotion);
+            return acc;
+        }, {});
+    }, [activePromotions]);
 
     const filtered = restaurants.filter((r) => {
         const matchesSearch = (r.name || "")
@@ -332,6 +360,11 @@ const HomePage = () => {
                     </Box>
                 </Box>
             </Box>
+            <ActivePromotionsBanner
+                promotions={activePromotions}
+                title="Restaurant promotions available now"
+            />
+
             {/* PERSONALIZED CONTENT - Only show for logged-in customers */}
             {user && user.roles?.includes("CUSTOMER") && (
                 <>
@@ -422,7 +455,10 @@ const HomePage = () => {
             >
                 {filtered.map((restaurant) => (
                     <Box key={restaurant.id}>
-                        <RestaurantCard restaurant={restaurant} />
+                        <RestaurantCard
+                            restaurant={restaurant}
+                            promotions={promotionsByRestaurant[String(restaurant.id)] || []}
+                        />
                     </Box>
                 ))}
             </Box>
