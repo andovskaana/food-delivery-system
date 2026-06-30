@@ -105,6 +105,7 @@ public class JwtSecurityWebConfig {
                                 "/api/orders/my-orders",
                                 "/api/orders/track/{id}",
                                 "/api/payments/**",
+                                "/api/orders/history",
                                 "/api/recommendations/cross-sell",
                                 "/api/recommendations/**",
                                 "/api/recommendations/advanced/**",
